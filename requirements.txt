@@ -1,0 +1,7 @@
+requests>=2.31
+# Optional: parses raw Form 6 (48-hour notice) filings with the version-aware
+# FEC schema. Without it build_data.py falls back to a positional parser for
+# the version 8.x layout and says so in build_log.json.
+fecfile>=0.6
+# Optional, for the rendered-page copy audit (tools/copy_audit.py)
+playwright>=1.45
