@@ -64,8 +64,11 @@ What it does, in order:
    processed Schedule A and B for the 2026 cycle, Schedule E (independent expenditures)
    processed and raw, Schedule F (coordinated party expenditures), and Form 6 48-hour notices
    from both the processed and raw filing indexes, downloading each Form 6 from docquery.
-3. Raw e-filed Schedule A and B rows dated after the processed coverage end, labeled
-   "raw filing, not yet processed by the Federal Election Commission."
+3. Raw e-filed Schedule A and B rows from filings whose line items the FEC has not yet
+   processed (it processes a report's summary weeks before its line items), labeled
+   "raw filing, not yet processed by the Federal Election Commission" and folded into the
+   election split, geography, crossover, party, spending and timeline sections with the raw
+   share stated.
 4. Schedule A for the six primary committees (Andres-Beck, Beccia, Belsito, Jakious,
    Lancaster, Nguyen) for the donor crossover match.
 5. Builds every section, reconciles each candidate's categories to reported total receipts,
@@ -73,7 +76,12 @@ What it does, in order:
 
 Amended reports: only the newest version is used (`most_recent`); superseded versions are
 counted in `build_log.json` under `amendments_excluded`. Memo and conduit entries
-(`memo_code = X`) are excluded from every total.
+(`memo_code = X`) are excluded from every total. Independent expenditures reach the FEC up to
+four times (24-hour notice and regular report, each raw and then processed, raw amounts
+without cents), so rows are matched on spender, side, whole-dollar amount, payee and date and
+one is kept per match, preferring the processed report; a notice is also dropped from the
+totals when the same group reports the same payee within seven days. The 24-hour list in the
+late-money section keeps every notice.
 
 ## Schedule
 
@@ -96,7 +104,9 @@ headline and dek only after reviewing a fresh build, on the most newsworthy veri
 applying the same standard to both candidates. Sentence-style capitalization; present tense
 for immediate action, an infinitive for anything to come; never begin with an article; never
 split a verb phrase; the dek must not repeat any word in the headline; curly quotes only.
-The shipped file is marked `"status": "placeholder"` for that reason.
+The file records which build the current headline was written from; rewrite it when a new
+filing changes the story (the pre-general report due Oct. 22 and the post-general report due
+Dec. 3 are the likely occasions).
 
 ## Quality checks before publishing
 
@@ -104,10 +114,12 @@ The shipped file is marked `"status": "placeholder"` for that reason.
 # 1. Reconciliation: each candidate's categories vs. reported total receipts
 python3 -c "import json;d=json.load(open('data/build_log.json'));print(json.dumps(d['reconciliation'],indent=1))"
 
-# 2. Spot-check five figures per candidate against FEC.gov (URLs and figures are in the log)
-python3 -c "import json;d=json.load(open('data/build_log.json'));print(json.dumps(d['spot_check'],indent=1))"
-#    Compare total receipts, total disbursements, cash on hand, debts and itemized individual
-#    contributions with the candidate page for the 2026 cycle and note any difference here.
+# 2. Spot-check five figures per candidate against FEC.gov
+python3 tools/spot_check.py
+#    Compares total receipts, total disbursements, cash on hand, debts and itemized individual
+#    contributions with the candidate-totals endpoint that the FEC.gov candidate page displays,
+#    checks that each figure appears on the summary line of the committee's own raw filing, and
+#    compares every group's independent-expenditure total with the FEC's per-candidate totals.
 
 # 3. No key anywhere
 python3 tools/check_no_key.py
@@ -126,6 +138,18 @@ and unexplained all-caps tokens for review.
 
 Test at phone width: the section nav becomes a jump menu below 821 px and every data table
 reflows into labeled cards below 768 px (headers stay in the DOM for assistive technology).
+
+### Spot-check record, build of Oct. 22, 2026
+
+All 10 candidate figures (five each) matched the FEC candidate-totals endpoint to the cent:
+Koh receipts $5,251,469.39, disbursements $4,253,534.06, cash on hand $999,275.05, debts
+$234,000, itemized individual contributions $4,531,906.27; Jones receipts $586,090.76,
+disbursements $370,619.67, cash on hand $215,471.09, debts $0, itemized individual
+contributions $530,826.67. Nine of 10 raw-filing checks matched; the exception is Koh's own
+October quarterly, which lists cycle-to-date disbursements of $4,253,559.06, $25 more than the
+FEC's processed total. The page uses the processed figure and states the difference. Both
+groups with processed independent expenditures matched the FEC's per-candidate totals
+(New Leadership PAC $1,055,318.67 supporting Koh; Think Big $705,312.66 supporting Koh).
 
 ## Run it locally
 

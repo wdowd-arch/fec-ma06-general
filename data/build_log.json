@@ -1,0 +1,124 @@
+{
+ "started_at": "2026-10-22T20:29:45.021310+00:00",
+ "mode": "offline-cache",
+ "api_base": "https://api.open.fec.gov/v1",
+ "cycle": 2026,
+ "endpoints": {
+  "/committee/C00654509/reports/": 1,
+  "/committee/C00654509/totals/": 1,
+  "/committee/C00937755/reports/": 1,
+  "/committee/C00937755/totals/": 1,
+  "/efile/filings/": 2,
+  "/efile/reports/house-senate/": 2,
+  "/filings/": 2,
+  "/schedules/schedule_a/": 139,
+  "/schedules/schedule_a/efile/": 9,
+  "/schedules/schedule_b/": 16,
+  "/schedules/schedule_b/efile/": 5,
+  "/schedules/schedule_e/": 2,
+  "/schedules/schedule_e/efile/": 2,
+  "/schedules/schedule_f/": 2,
+  "https://docquery.fec.gov/dcdev/posted/2026278.fec": 1,
+  "https://docquery.fec.gov/dcdev/posted/2029598.fec": 1,
+  "https://docquery.fec.gov/dcdev/posted/2031407.fec": 1,
+  "https://docquery.fec.gov/dcdev/posted/2035106.fec": 1,
+  "https://docquery.fec.gov/dcdev/posted/2035260.fec": 1,
+  "https://docquery.fec.gov/dcdev/posted/2036004.fec": 1,
+  "https://www.fec.gov/help-candidates-and-committees/candidate-taking-receipts/contribution-limits": 1
+ },
+ "warnings": [],
+ "requests": 0,
+ "cache_hits": 192,
+ "rate_limit_pauses": 0,
+ "backoffs": 0,
+ "amendments_excluded": {
+  "koh_reports": 1,
+  "jones_reports": 1,
+  "independent_expenditures": 8,
+  "koh_f6": 0,
+  "jones_f6": 1
+ },
+ "ie_duplicate_rows_dropped": 72,
+ "finished_at": "2026-10-22T20:29:46.413115+00:00",
+ "run_seconds": 1.4,
+ "record_counts": {
+  "koh": {
+   "schedule_a_rows": 6859,
+   "schedule_a_memo_rows": 3352,
+   "individual_rows": 3241,
+   "schedule_b_rows": 1072,
+   "schedule_b_memo_rows": 398,
+   "raw_schedule_a_rows": 685,
+   "raw_schedule_b_rows": 233
+  },
+  "jones": {
+   "schedule_a_rows": 473,
+   "schedule_a_memo_rows": 78,
+   "individual_rows": 390,
+   "schedule_b_rows": 403,
+   "schedule_b_memo_rows": 28,
+   "raw_schedule_a_rows": 177,
+   "raw_schedule_b_rows": 147
+  },
+  "independent_expenditures": 26,
+  "notices_48h": 6,
+  "crossover_rows": 38,
+  "primary_schedule_a_rows": {
+   "andres_beck": 627,
+   "beccia": 920,
+   "belsito": 633,
+   "jakious": 475,
+   "lancaster": 924,
+   "nguyen": 2564
+  }
+ },
+ "reconciliation": {
+  "koh": {
+   "reported_total_receipts": 5251469.39,
+   "calculated_category_total": 5251469.39,
+   "difference": 0.0,
+   "status": "reconciled",
+   "tolerance": 0.01,
+   "basis": "processed committee totals"
+  },
+  "jones": {
+   "reported_total_receipts": 586090.76,
+   "calculated_category_total": 586090.76,
+   "difference": 0.0,
+   "status": "reconciled",
+   "tolerance": 0.01,
+   "basis": "processed committee totals"
+  }
+ },
+ "contribution_limit": {
+  "individual_per_election": 3500,
+  "source_url": "https://www.fec.gov/help-candidates-and-committees/candidate-taking-receipts/contribution-limits/",
+  "retrieved_at": "2026-10-22T20:29:45.023528+00:00",
+  "status": "retrieved",
+  "cycle_label": "2025-26"
+ },
+ "spot_check": {
+  "koh": {
+   "compare_at": "https://www.fec.gov/data/candidate/H8MA03072/?cycle=2026&election_full=true",
+   "figures": {
+    "total_receipts": 5251469.39,
+    "total_disbursements": 4253534.06,
+    "cash_on_hand": 999275.05,
+    "debts": 234000.0,
+    "individual_itemized": 4531906.27
+   },
+   "note": "Compare each figure to the FEC.gov candidate page for the 2026 cycle (election_full=true) and record the result in README.md before publishing."
+  },
+  "jones": {
+   "compare_at": "https://www.fec.gov/data/candidate/H6MA06202/?cycle=2026&election_full=true",
+   "figures": {
+    "total_receipts": 586090.76,
+    "total_disbursements": 370619.67,
+    "cash_on_hand": 215471.09,
+    "debts": 0.0,
+    "individual_itemized": 530826.67
+   },
+   "note": "Compare each figure to the FEC.gov candidate page for the 2026 cycle (election_full=true) and record the result in README.md before publishing."
+  }
+ }
+}
