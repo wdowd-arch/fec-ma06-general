@@ -1273,7 +1273,7 @@ def main():
     ap.add_argument("--cache-dir", default=os.environ.get("FEC_CACHE_DIR", CACHE_DIR))
     ap.add_argument("--out-dir", default=DATA_DIR)
     ap.add_argument("--rate-limit", type=int, default=int(os.environ.get("FEC_RATE_LIMIT", "60")))
-    ap.add_argument("--rate-window-seconds", type=int, default=int(os.environ.get("FEC_RATE_WINDOW_SECONDS", "3600")))
+    ap.add_argument("--rate-window-seconds", type=int, default=int(os.environ.get("FEC_RATE_WINDOW_SECONDS", "60")))
     ap.add_argument("--primary-cache-ttl-hours", type=float, default=float(os.environ.get("FEC_PRIMARY_CACHE_TTL_HOURS", str(24 * 14))),
                     help="cache life for the six primary committees, whose campaigns are over")
     args = ap.parse_args()
