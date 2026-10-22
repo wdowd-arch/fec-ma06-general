@@ -718,5 +718,8 @@
     initSectionNav();
     observeLazy("geography", loadUsMapOnce);
   }
-  document.addEventListener("DOMContentLoaded", init);
+  // Inside a Ghost HTML card the script is injected after the page has
+  // parsed, so DOMContentLoaded has already fired; start at once in that case.
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
 })();

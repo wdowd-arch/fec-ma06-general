@@ -21,6 +21,10 @@ data/
 assets/images/         nameplate
 tools/copy_audit.py    copy audit on the rendered page
 tools/check_no_key.py  fails if the API key appears anywhere in the tree
+tools/spot_check.py    compares the build with the FEC's own totals
+tools/make_embed.py    writes ghost/embed.html from index.html
+ghost/embed.html       the Ghost HTML card (generated)
+ghost/UPLOAD.md        publishing steps for marbleheadindependent.com/ma-06-general/
 cache/                 API response cache (gitignored)
 ```
 
@@ -160,34 +164,29 @@ python3 -m http.server 8000
 # open http://localhost:8000/
 ```
 
-## Upload to Ghost
+## Publish on marbleheadindependent.com/ma-06-general/
 
-The page reads its JSON from `window.MA06_DATA_BASE`, so it can live either as a standalone
-page (the recommended route from the primary edition's hosting notes: a static host or a
-subdomain) or inside a Ghost HTML card.
+The page is a Ghost page containing one HTML card. `ghost/embed.html` is exactly what goes in
+the card: a script holding the one base URL for the uploaded files (`MA06_BASE`), the
+`<div id="ma06-app">` block from `index.html`, and the loader for `app.js`. It is generated
+from `index.html` by `tools/make_embed.py`; rerun that after any change to the page markup.
 
-Ghost HTML card:
+```bash
+python3 tools/make_embed.py      # regenerates ghost/embed.html
+```
 
-1. In Ghost Admin, upload `styles.css`, `app.js`, `data/dashboard.json`, `data/copy.json`,
-   `data/us-states-paths.json` and `assets/images/nameplate-horizontal.png` (Settings, Labs,
-   or any file host; note the folder URL, for example
-   `https://www.marbleheadindependent.com/content/files/ma06-general/`).
-2. Create a page, add an HTML card, and paste:
+Files uploaded to `https://www.marbleheadindependent.com/content/files/ma06-general/`:
+`styles.css`, `app.js`, `data/dashboard.json`, `data/build_log.json`, `data/copy.json`,
+`data/us-states-paths.json` and `assets/images/nameplate-horizontal.png`. After each daily
+build only `data/dashboard.json` and `data/build_log.json` change (plus `data/copy.json` when
+the headline changes); the page itself is never edited.
 
-   ```html
-   <link rel="stylesheet" href="https://…/ma06-general/styles.css">
-   <script>window.MA06_DATA_BASE = "https://…/ma06-general/data/";</script>
-   <!-- everything between <div id="ma06-app"> and </div> from index.html,
-        with the nameplate src pointed at the uploaded image -->
-   <script src="https://…/ma06-general/app.js"></script>
-   ```
+Step-by-step instructions, including the page slug, canonical URL, meta title and
+description, and what to do if Ghost cannot host the folder layout, are in
+**[ghost/UPLOAD.md](ghost/UPLOAD.md)**.
 
-3. Each daily build only needs `dashboard.json` and `build_log.json` re-uploaded; the HTML
-   card does not change. Replace `copy.json` when the headline changes.
-
-Every style rule is scoped under `#ma06-app`, so the theme's own styles are untouched. Open
-Graph tags are set once in `index.html`; Ghost sets its own on an embedded page, so do not
-paste the `<head>`.
+Every style rule is scoped under `#ma06-app`, so the theme's own styles are untouched, and the
+card sets no Open Graph tags because Ghost generates them from the page's meta settings.
 
 ## What changed from the primary edition
 
