@@ -92,8 +92,11 @@
   function possessive(c) { return c.last_name + (c.last_name.endsWith("s") ? "’" : "’s"); }
 
   // ------------------------------------------------------------- loading
+  // Exact per-file URLs win over the folder base: Ghost renames an uploaded
+  // file that shares a name with an earlier upload, so the embed can pin each.
   async function fetchJson(name) {
-    const r = await fetch(BASE + name, { cache: "no-cache" });
+    const files = window.MA06_DATA_FILES || {};
+    const r = await fetch(files[name] || BASE + name, { cache: "no-cache" });
     if (!r.ok) throw new Error(name + " " + r.status);
     return r.json();
   }
@@ -268,6 +271,14 @@
         recon.appendChild(el("p", { class: "recon-flag" }, [possessive(c) + " receipt categories total " + money(r.calculated_category_total) + " against reported total receipts of " + money(r.reported_total_receipts) + ". The " + money(r.difference, true) + " difference is shown as unreconciled."]));
       }
     });
+    cs.forEach((c) => {
+      const f = c.totals.filed_cycle || {};
+      [["receipts", "receipts"], ["disbursements", "disbursements"]].forEach(([k, label]) => {
+        if (isNum(f[k]) && isNum(c.totals[k]) && Math.abs(f[k] - c.totals[k]) > 0.01) {
+          recon.appendChild(el("p", { class: "panel-note" }, [possessive(c) + " own " + f.report + " report lists cycle-to-date " + label + " of " + money(f[k], true) + "; the FEC’s processed total, used here and on FEC.gov, is " + money(c.totals[k], true) + ", a difference of " + money(Math.abs(f[k] - c.totals[k]), true) + "."]));
+        }
+      });
+    });
     const rawTotals = cs.filter((c) => isRaw(c.totals.source));
     if (rawTotals.length) recon.appendChild(el("p", { class: "panel-note" }, ["Figures marked “Raw filing” come from a report the FEC has posted but not yet processed; they can change once processing finishes."]));
   }
@@ -297,8 +308,8 @@
         kids.push(el("p", { class: "panel-note", style: "margin:.8rem 0 0;max-width:none;text-align:left" }, [
           numSentenceStart(s.at_limit_general) + " donor " + plural(s.at_limit_general, "record", "records") + " (name plus ZIP code) " + plural(s.at_limit_general, "has", "have") + " given " + c.last_name + " the full " + money(lim.individual_per_election) + " for the general election; " + numWord(s.at_limit_primary) + " did so for the primary."]));
       }
-      if (s.raw_general > 0 || s.raw_primary > 0) {
-        kids.push(el("p", { class: "panel-note", style: "margin:.5rem 0 0;max-width:none;text-align:left" }, ["Raw filings not yet processed by the FEC add " + money(s.raw_general) + " designated for the general election and " + money(s.raw_primary) + " for the primary; they are not in the bar above."]));
+      if (s.raw_total > 0) {
+        kids.push(el("p", { class: "panel-note", style: "margin:.5rem 0 0;max-width:none;text-align:left" }, ["The figures include " + money(s.raw_total) + " from raw filings not yet processed by the FEC: " + money(s.raw_general) + " designated for the general election, " + money(s.raw_primary) + " for the primary and " + money(s.raw_undesignated) + " with no designation."]));
       }
       list.appendChild(pairBlock(c, kids));
     });
@@ -315,7 +326,7 @@
       summary.appendChild(pairBlock(c, [
         el("div", { class: "hbar-row" }, [el("span", { class: "lbl" }, ["Supporting " + c.last_name]), el("div", { class: "hbar-track", role: "img", "aria-label": "Supporting " + c.last_name + " " + money(side.support) }, [el("div", { class: "hbar-fill", style: "width:" + (os.total ? (side.support / os.total) * 100 : 0) + "%;background:var(--positive)" })]), el("span", { class: "amt" }, [money(side.support)])]),
         el("div", { class: "hbar-row" }, [el("span", { class: "lbl" }, ["Opposing " + c.last_name]), el("div", { class: "hbar-track", role: "img", "aria-label": "Opposing " + c.last_name + " " + money(side.oppose) }, [el("div", { class: "hbar-fill", style: "width:" + (os.total ? (side.oppose / os.total) * 100 : 0) + "%;background:var(--independent-red)" })]), el("span", { class: "amt" }, [money(side.oppose)])]),
-        el("p", { class: "panel-note", style: "margin:.4rem 0 0;max-width:none;text-align:left" }, [numSentenceStart(side.count) + " " + plural(side.count, "expenditure") + " on file naming " + c.last_name + "."]),
+        el("p", { class: "panel-note", style: "margin:.4rem 0 0;max-width:none;text-align:left" }, [numSentenceStart(side.count) + " " + plural(side.count, "expenditure") + " on file naming " + c.last_name + " for the 2026 cycle. Of the dollars, " + money(side.support_general) + " supporting and " + money(side.oppose_general) + " opposing were designated for the general election; the rest were designated for the primary or carried no designation."]),
       ]));
     });
 
@@ -339,6 +350,7 @@
     { key: "date", label: "Date", render: (r) => { const s = el("span", {}, [fmtDate(r.date)]); if (isRaw(r.source)) { s.appendChild(document.createTextNode(" ")); s.appendChild(rawPill()); } return s; } },
     { key: "group", label: "Group", render: (r) => r.group_fec_url ? link(r.group_fec_url, r.group) : r.group, wrap: true },
     { key: "side", label: "Position", render: (r) => pill(sideLabel(r), r.side), sortValue: (r) => sideLabel(r) },
+    { key: "election", label: "Election", render: (r) => r.election === "general" ? "General" : r.election === "primary" ? "Primary" : r.election === "not_stated" ? "Not stated on the raw filing" : "Not designated" },
     { key: "amount", label: "Amount", num: true, cents: true },
     { key: "purpose", label: "Purpose", wrap: true, render: (r) => r.purpose || "not described" },
     { key: "payee", label: "Payee", wrap: true, render: (r) => r.payee || "not reported" },
@@ -375,6 +387,7 @@
         el("span", { class: "meta" }, ["Filed " + fmtDate(n.filed) + " · " + money(n.total, true) + " across " + numWord(n.count) + " " + plural(n.count, "contribution") + " · ", link(n.filing_page || n.fec_url, "View the notice on FEC.gov")]),
       ]);
       card.appendChild(head);
+      if (n.before_window) card.appendChild(el("p", { class: "meta", style: "margin:.3rem 0 0" }, ["Every contribution on this notice is dated before " + fmtDate(lm.window_start) + "; the committee filed it late or for the primary’s own 48-hour window."]));
       if (n.contributions.length) {
         const t = el("table", { class: "card-table" }, [
           el("thead", {}, [el("tr", {}, [el("th", { scope: "col" }, ["Contributor"]), el("th", { scope: "col" }, ["City, state"]), el("th", { scope: "col" }, ["Employer, occupation"]), el("th", { scope: "col" }, ["Date received"]), el("th", { scope: "col", class: "num" }, ["Amount"])])]),
@@ -428,7 +441,7 @@
     { key: "donor", label: "Donor", wrap: true },
     { key: "city", label: "City, state", render: (r) => (r.city ? r.city + ", " : "") + (r.state || "") },
     { key: "primary_total", label: "Primary candidate (gift)", wrap: true, render: (r) => r.primary_candidates.map((p) => p.candidate + " (" + money(p.total) + ", first " + fmtDay(p.first_date) + ")").join("; "), sortValue: (r) => r.primary_total },
-    { key: "general_candidate", label: "Later gave to", render: (r) => pill(r.general_candidate, r.general_key) },
+    { key: "general_candidate", label: "Later gave to", render: (r) => { const s = el("span", {}, [pill(r.general_candidate, r.general_key)]); if (r.raw) { s.appendChild(document.createTextNode(" ")); s.appendChild(rawPill()); } return s; } },
     { key: "general_total", label: "Later gifts", num: true },
     { key: "general_after_primary", label: "Of that, after Sept. 1", num: true },
     { key: "last_general_date", label: "Most recent gift", render: (r) => fmtDate(r.last_general_date) },
@@ -453,6 +466,7 @@
       const g = c.geography;
       const kids = stackWithLegend(GEO.map((x) => ({ label: x.label, value: g[x.key], color: x.color })), g.located_total, "in itemized individual gifts with a state on file", "geo-detail-" + c.key);
       if (g.unknown > 0) kids.push(el("p", { class: "panel-note", style: "margin:.4rem 0 0;max-width:none;text-align:left" }, [money(g.unknown) + " came from donors with no state on file and is left out of the shares above."]));
+      if (g.raw_total > 0) kids.push(el("p", { class: "panel-note", style: "margin:.4rem 0 0;max-width:none;text-align:left" }, ["Includes " + money(g.raw_total) + " from raw filings not yet processed by the FEC."]));
       summary.appendChild(pairBlock(c, kids));
     });
     const tabs = byId("geo-tabs");
@@ -553,7 +567,7 @@
         const t = el("table", { class: "card-table" }, [
           el("thead", {}, [el("tr", {}, [el("th", { scope: "col" }, ["Committee"]), el("th", { scope: "col" }, ["Date"]), el("th", { scope: "col" }, ["Election"]), el("th", { scope: "col", class: "num" }, ["Amount"]), el("th", { scope: "col" }, ["Filing"])])]),
           el("tbody", {}, p.contributions.map((r) => el("tr", {}, [
-            el("td", { "data-label": "Committee", class: "wrap-cell" }, [r.committee]), el("td", { "data-label": "Date" }, [fmtDate(r.date)]),
+            el("td", { "data-label": "Committee", class: "wrap-cell" }, [r.committee, r.raw ? " " : null, r.raw ? rawPill() : null]), el("td", { "data-label": "Date" }, [fmtDate(r.date)]),
             el("td", { "data-label": "Election" }, [r.election === "general" ? "General" : r.election === "primary" ? "Primary" : "Not designated"]),
             el("td", { "data-label": "Amount", class: "num" }, [money(r.amount, true)]), el("td", { "data-label": "Filing" }, [link(r.filing_page, "View on FEC.gov")]),
           ]))),
@@ -639,7 +653,7 @@
         hbarList(holder, entries, entries[0][1], c.key);
         kids.push(holder);
       }
-      kids.push(el("p", { class: "panel-note", style: "margin:.6rem 0 0;max-width:none;text-align:left" }, ["Itemized disbursements total " + money(s.itemized_total) + " across " + fmtInt.format(s.rows) + " rows; the committee’s reported total disbursements are " + money(s.reported_total_disbursements) + "." + (s.raw_rows_after_processed ? " " + numSentenceStart(s.raw_rows_after_processed) + " newer " + plural(s.raw_rows_after_processed, "row") + " from raw filings " + plural(s.raw_rows_after_processed, "is", "are") + " not yet categorized here." : "")]));
+      kids.push(el("p", { class: "panel-note", style: "margin:.6rem 0 0;max-width:none;text-align:left" }, ["Itemized disbursements total " + money(s.itemized_total) + " across " + fmtInt.format(s.rows) + " rows; the committee’s reported total disbursements are " + money(s.reported_total_disbursements) + ", a figure that also covers unitemized payments." + (s.raw_total > 0 ? " Includes " + money(s.raw_total) + " across " + fmtInt.format(s.raw_rows) + " rows from raw filings not yet processed by the FEC." : "")]));
       host.appendChild(pairBlock(c, kids));
     });
   }
@@ -652,12 +666,12 @@
     const amendTotal = Object.values(amend).reduce((a, b) => a + (b || 0), 0);
     const items = [
       ["Data source", "OpenFEC, the FEC’s public data service, read by a build script that writes the figures this page shows. Totals, reports and itemized receipts and disbursements come from the FEC’s processed data. Where a committee or group has filed something the FEC has not yet processed, the page uses the raw e-filing and labels it “" + RAW_TEXT + ".” The 48-hour notices are read from the raw Form 6 filings themselves. The page never calls the service; it loads only the pre-built files. This build ran " + d.meta.generated_at_display + " Eastern time."],
-      ["Which report each figure comes from", "Total receipts, total disbursements, cash on hand and debt are each committee’s own cycle-to-date figures from its most recent report. The weekly timeline, geography, election split, spending and crossover sections are built from itemized rows, which the FEC processes separately and can lag the summary by days."],
+      ["Which report each figure comes from", "Total receipts, total disbursements, cash on hand and debt are each committee’s own cycle-to-date figures from its most recent report. The weekly timeline, geography, election split, spending, party and crossover sections are built from itemized rows. The FEC processes line items separately from the summary and can lag it by weeks, so wherever a filing’s line items are not yet processed, the raw e-filed rows are used and labeled. " + cands().map((c) => c.last_name + ": line items processed through " + fmtDate(c.totals.itemized_processed_through) + (c.totals.raw_through ? ", raw rows through " + fmtDate(c.totals.raw_through) : "")).join("; ") + "."],
       ["Amendments", "When a report is amended, only the newest version is used, never the original plus the amendment. This build excluded " + numWord(amendTotal) + " superseded " + plural(amendTotal, "filing") + " across reports, 48-hour notices and independent expenditures. It also dropped " + numWord(m.ie_notices_superseded_by_reports || 0) + " 24- or 48-hour independent expenditure " + plural(m.ie_notices_superseded_by_reports || 0, "notice") + " that later appeared on a regular report."],
       ["Memo and conduit entries", "Rows the filer marked as memo entries, such as the ActBlue or WinRed pass-through record that accompanies an earmarked gift, are left out of every total so the same dollars are not counted twice."],
       ["Reconciliation", "For each candidate, the nine receipt categories on the committee’s summary (individuals, party committees, other committees, candidate contributions, candidate loans, other loans, transfers, offsets to operating expenditures and other receipts) are added up and compared with reported total receipts. Any difference larger than a cent is shown as “unreconciled” rather than hidden."].concat([]),
       ["Primary vs. general", "Each itemized gift from an individual carries the election the committee designated it for. Gifts with no designation are shown as such and not assigned. The per-election limit is read from " + (lim.source_url || "FEC.gov") + " on each build" + (lim.status === "retrieved" ? " (" + money(lim.individual_per_election) + " for " + lim.cycle_label + ")" : ", and was not retrieved on this build") + "."],
-      ["Outside spending", "Independent expenditures come from Schedule E rows naming either candidate, processed and raw, with memo rows and superseded amendments removed. Federal law bars the groups that make them from coordinating with a campaign. A group’s spending is listed under the candidate it named and the side it reported, support or oppose."],
+      ["Outside spending", "Independent expenditures come from Schedule E rows naming either candidate, processed and raw, with memo rows and superseded amendments removed. The same expenditure can reach the FEC on a 24-hour notice and again on the group’s regular report, each first as a raw e-filing and then as processed data. Raw amounts arrive without cents. Rows are therefore matched on spender, side, whole-dollar amount, payee and date and one is kept, preferring the processed report. Federal law bars the groups that make them from coordinating with a campaign. A group’s spending is listed under the candidate it named and the side it reported, support or oppose."],
       ["Late money", "The FEC requires a 48-hour notice for any contribution of $1,000 or more received from " + fmtDay(d.late_money.window_start) + " through " + fmtDay(d.late_money.window_end) + ", and a 24-hour report for independent expenditures of $1,000 or more in the same period. Both lists are rebuilt on every run and stamped with the time of the check."],
       ["Donor crossover rule", m.crossover_rule],
       ["How “estimated in the district” works", "A donor with a Massachusetts address is counted in the district when the first five digits of the ZIP code on the receipt are on the primary edition’s list of " + numWord(m.zips.length) + " district ZIP codes, or the town is on its list of " + numWord(m.towns.length) + " towns: " + m.towns.join(", ") + ". Any other Massachusetts address is “elsewhere in Massachusetts.” A receipt with no state is “unknown,” not “out of state.” ZIP codes do not follow district lines exactly and some towns are split, so this is an estimate. The ZIP list: " + m.zips.join(", ") + "."],
@@ -707,5 +721,8 @@
     initSectionNav();
     observeLazy("geography", loadUsMapOnce);
   }
-  document.addEventListener("DOMContentLoaded", init);
+  // Inside a Ghost HTML card the script is injected after the page has
+  // parsed, so DOMContentLoaded has already fired; start at once in that case.
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
 })();

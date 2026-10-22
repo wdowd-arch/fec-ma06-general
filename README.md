@@ -21,6 +21,12 @@ data/
 assets/images/         nameplate
 tools/copy_audit.py    copy audit on the rendered page
 tools/check_no_key.py  fails if the API key appears anywhere in the tree
+tools/spot_check.py    compares the build with the FEC's own totals
+tools/make_embed.py    writes ghost/embed.html from index.html and ghost/manifest.json
+tools/publish_ghost.py one-command daily refresh: build, spot-check, upload, update the page
+ghost/embed.html       the Ghost HTML card (generated)
+ghost/manifest.json    URLs Ghost assigned to the uploaded files (written by publish_ghost.py)
+ghost/UPLOAD.md        publishing steps for marbleheadindependent.com/ma-06-general/
 cache/                 API response cache (gitignored)
 ```
 
@@ -64,8 +70,11 @@ What it does, in order:
    processed Schedule A and B for the 2026 cycle, Schedule E (independent expenditures)
    processed and raw, Schedule F (coordinated party expenditures), and Form 6 48-hour notices
    from both the processed and raw filing indexes, downloading each Form 6 from docquery.
-3. Raw e-filed Schedule A and B rows dated after the processed coverage end, labeled
-   "raw filing, not yet processed by the Federal Election Commission."
+3. Raw e-filed Schedule A and B rows from filings whose line items the FEC has not yet
+   processed (it processes a report's summary weeks before its line items), labeled
+   "raw filing, not yet processed by the Federal Election Commission" and folded into the
+   election split, geography, crossover, party, spending and timeline sections with the raw
+   share stated.
 4. Schedule A for the six primary committees (Andres-Beck, Beccia, Belsito, Jakious,
    Lancaster, Nguyen) for the donor crossover match.
 5. Builds every section, reconciles each candidate's categories to reported total receipts,
@@ -73,7 +82,12 @@ What it does, in order:
 
 Amended reports: only the newest version is used (`most_recent`); superseded versions are
 counted in `build_log.json` under `amendments_excluded`. Memo and conduit entries
-(`memo_code = X`) are excluded from every total.
+(`memo_code = X`) are excluded from every total. Independent expenditures reach the FEC up to
+four times (24-hour notice and regular report, each raw and then processed, raw amounts
+without cents), so rows are matched on spender, side, whole-dollar amount, payee and date and
+one is kept per match, preferring the processed report; a notice is also dropped from the
+totals when the same group reports the same payee within seven days. The 24-hour list in the
+late-money section keeps every notice.
 
 ## Schedule
 
@@ -96,7 +110,9 @@ headline and dek only after reviewing a fresh build, on the most newsworthy veri
 applying the same standard to both candidates. Sentence-style capitalization; present tense
 for immediate action, an infinitive for anything to come; never begin with an article; never
 split a verb phrase; the dek must not repeat any word in the headline; curly quotes only.
-The shipped file is marked `"status": "placeholder"` for that reason.
+The file records which build the current headline was written from; rewrite it when a new
+filing changes the story (the pre-general report due Oct. 22 and the post-general report due
+Dec. 3 are the likely occasions).
 
 ## Quality checks before publishing
 
@@ -104,10 +120,12 @@ The shipped file is marked `"status": "placeholder"` for that reason.
 # 1. Reconciliation: each candidate's categories vs. reported total receipts
 python3 -c "import json;d=json.load(open('data/build_log.json'));print(json.dumps(d['reconciliation'],indent=1))"
 
-# 2. Spot-check five figures per candidate against FEC.gov (URLs and figures are in the log)
-python3 -c "import json;d=json.load(open('data/build_log.json'));print(json.dumps(d['spot_check'],indent=1))"
-#    Compare total receipts, total disbursements, cash on hand, debts and itemized individual
-#    contributions with the candidate page for the 2026 cycle and note any difference here.
+# 2. Spot-check five figures per candidate against FEC.gov
+python3 tools/spot_check.py
+#    Compares total receipts, total disbursements, cash on hand, debts and itemized individual
+#    contributions with the candidate-totals endpoint that the FEC.gov candidate page displays,
+#    checks that each figure appears on the summary line of the committee's own raw filing, and
+#    compares every group's independent-expenditure total with the FEC's per-candidate totals.
 
 # 3. No key anywhere
 python3 tools/check_no_key.py
@@ -127,6 +145,18 @@ and unexplained all-caps tokens for review.
 Test at phone width: the section nav becomes a jump menu below 821 px and every data table
 reflows into labeled cards below 768 px (headers stay in the DOM for assistive technology).
 
+### Spot-check record, build of Oct. 22, 2026
+
+All 10 candidate figures (five each) matched the FEC candidate-totals endpoint to the cent:
+Koh receipts $5,251,469.39, disbursements $4,253,534.06, cash on hand $999,275.05, debts
+$234,000, itemized individual contributions $4,531,906.27; Jones receipts $586,090.76,
+disbursements $370,619.67, cash on hand $215,471.09, debts $0, itemized individual
+contributions $530,826.67. Nine of 10 raw-filing checks matched; the exception is Koh's own
+October quarterly, which lists cycle-to-date disbursements of $4,253,559.06, $25 more than the
+FEC's processed total. The page uses the processed figure and states the difference. Both
+groups with processed independent expenditures matched the FEC's per-candidate totals
+(New Leadership PAC $1,055,318.67 supporting Koh; Think Big $705,312.66 supporting Koh).
+
 ## Run it locally
 
 Browsers block `fetch()` from `file://` pages, so serve the folder:
@@ -136,34 +166,28 @@ python3 -m http.server 8000
 # open http://localhost:8000/
 ```
 
-## Upload to Ghost
+## Publish on marbleheadindependent.com/ma-06-general/
 
-The page reads its JSON from `window.MA06_DATA_BASE`, so it can live either as a standalone
-page (the recommended route from the primary edition's hosting notes: a static host or a
-subdomain) or inside a Ghost HTML card.
+The page is a Ghost page containing one HTML card, `ghost/embed.html`: a script holding the
+uploaded files' URLs, the `<div id="ma06-app">` block from `index.html`, and the loader for
+`app.js`. `tools/publish_ghost.py` does the whole refresh in one command, reading every
+credential from the environment:
 
-Ghost HTML card:
+```bash
+export FEC_API_KEY=... GHOST_ADMIN_API_KEY=id:secret GHOST_ADMIN_URL=https://www.marbleheadindependent.com
+python3 tools/publish_ghost.py --setup   # once: upload every file, create the page as a draft
+python3 tools/publish_ghost.py           # daily: build, spot-check, upload the data, update the card
+```
 
-1. In Ghost Admin, upload `styles.css`, `app.js`, `data/dashboard.json`, `data/copy.json`,
-   `data/us-states-paths.json` and `assets/images/nameplate-horizontal.png` (Settings, Labs,
-   or any file host; note the folder URL, for example
-   `https://www.marbleheadindependent.com/content/files/ma06-general/`).
-2. Create a page, add an HTML card, and paste:
+The daily run stops if the build or the spot-check fails, uploads only `data/dashboard.json`
+and `data/build_log.json` (plus `data/copy.json` when the headline changed), records the
+URLs Ghost assigned in `ghost/manifest.json`, regenerates `ghost/embed.html` with
+`tools/make_embed.py` and rewrites the page's card without changing its draft or published
+status. Step-by-step instructions, the manual alternative and what to publish are in
+**[ghost/UPLOAD.md](ghost/UPLOAD.md)**.
 
-   ```html
-   <link rel="stylesheet" href="https://…/ma06-general/styles.css">
-   <script>window.MA06_DATA_BASE = "https://…/ma06-general/data/";</script>
-   <!-- everything between <div id="ma06-app"> and </div> from index.html,
-        with the nameplate src pointed at the uploaded image -->
-   <script src="https://…/ma06-general/app.js"></script>
-   ```
-
-3. Each daily build only needs `dashboard.json` and `build_log.json` re-uploaded; the HTML
-   card does not change. Replace `copy.json` when the headline changes.
-
-Every style rule is scoped under `#ma06-app`, so the theme's own styles are untouched. Open
-Graph tags are set once in `index.html`; Ghost sets its own on an embedded page, so do not
-paste the `<head>`.
+Every style rule is scoped under `#ma06-app`, so the theme's own styles are untouched, and the
+card sets no Open Graph tags because Ghost generates them from the page's meta settings.
 
 ## What changed from the primary edition
 

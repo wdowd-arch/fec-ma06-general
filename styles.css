@@ -31,14 +31,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
+  html:has(body.ma06-page) { scroll-behavior: auto; }
   #ma06-app *, #ma06-app *::before, #ma06-app *::after {
     animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important;
   }
 }
 
-html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+/* Page-level rules apply only on the standalone page; inside Ghost the theme owns html and body. */
 body.ma06-page { margin: 0; background: var(--shell-white); }
+html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
 
 #ma06-app {
   background: var(--shell-white);

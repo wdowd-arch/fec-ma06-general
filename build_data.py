@@ -216,11 +216,52 @@ def first(d, *keys, default=None):
 
 
 def clean(s):
-    return " ".join((s or "").split())
+    return " ".join((s or "").split()).strip(" ,;")
+
+
+def person_display(row):
+    """'First Last' when the filing gives the parts; otherwise the filed
+    name with a 'LAST, FIRST' form turned around."""
+    first_name = clean(row.get("contributor_first_name"))
+    last = clean(row.get("contributor_last_name"))
+    if first_name and last:
+        return title_display(f"{first_name} {last}")
+    name = clean(row.get("contributor_name"))
+    if "," in name:
+        a, b = [x.strip() for x in name.split(",", 1)]
+        if b:
+            return title_display(f"{b} {a}")
+    return title_display(name)
 
 
 KEEP_UPPER = {"PAC", "LLC", "LLP", "INC", "USA", "US", "NRCC", "DCCC", "DNC", "RNC", "GOP", "AFL-CIO", "SEIU",
               "UAW", "IBEW", "AFSCME", "NEA", "AFT", "UFCW", "II", "III", "IV", "MA", "NH", "NY", "CT", "DC", "IT", "AI"}
+
+
+UPPER_TOKENS = KEEP_UPPER | {"SMS", "MMS", "TV", "GOTV", "P2P", "CTV", "OTT", "ID", "ZIP", "FEC"}
+TOKEN_FIXES = {"INC": "Inc.", "INC.": "Inc.", "LLC.": "LLC"}
+
+
+def sentence_display(raw):
+    """Filer text that arrives in ALL CAPS (report names, expenditure
+    purposes) becomes sentence case: 'October quarterly', 'Digital media
+    buy'. Mixed-case text is left alone; initialisms stay uppercase."""
+    s = clean(raw)
+    if not s:
+        return s
+    letters = [c for c in s if c.isalpha()]
+    if not letters or s != s.upper():
+        return s
+    words = []
+    for i, w in enumerate(s.split(" ")):
+        core = w.strip(".,;:()/")
+        if core in TOKEN_FIXES:
+            words.append(w.replace(core, TOKEN_FIXES[core]))
+        elif core in UPPER_TOKENS:
+            words.append(w)
+        else:
+            words.append(w.lower() if i else w.capitalize())
+    return " ".join(words)
 
 
 def title_display(raw):
@@ -234,8 +275,11 @@ def title_display(raw):
     if letters and (s == s.upper() or s == s.lower()):
         words = []
         for w in s.title().split(" "):
-            core = w.strip(".,;:()")
-            words.append(w.upper() if core.upper() in KEEP_UPPER else w)
+            core = w.strip(".,;:()").upper()
+            if core in TOKEN_FIXES:
+                words.append(TOKEN_FIXES[core])
+            else:
+                words.append(w.upper() if core in UPPER_TOKENS else w)
         return " ".join(words)
     return s
 
@@ -349,7 +393,7 @@ class FecClient:
         key = url + "?" + json.dumps(params or {}, sort_keys=True)
         return os.path.join(self.cache_dir, hashlib.sha256(key.encode()).hexdigest() + ".json")
 
-    def _read_cache(self, path):
+    def _read_cache(self, path, ttl=None):
         if not os.path.exists(path):
             return None
         try:
@@ -360,7 +404,7 @@ class FecClient:
         if self.offline:
             return entry
         fetched = dt.datetime.fromisoformat(entry.get("fetched_at", "1970-01-01T00:00:00+00:00"))
-        if dt.datetime.now(dt.timezone.utc) - fetched > self.ttl:
+        if dt.datetime.now(dt.timezone.utc) - fetched > (ttl or self.ttl):
             return None
         return entry
 
@@ -401,13 +445,13 @@ class FecClient:
                 self._window_started = None
 
     # -- requests -----------------------------------------------------------
-    def get(self, path, params=None, raw_text=False, base=None):
+    def get(self, path, params=None, raw_text=False, base=None, ttl=None):
         """GET an endpoint (or any URL when base is given) with caching."""
         params = dict(params or {})
         url = (base.rstrip("/") + path) if base else (API_BASE.rstrip("/") + path)
         cpath = self._cache_path(url, params)
-        if not self.refresh:
-            entry = self._read_cache(cpath)
+        if not self.refresh or ttl:
+            entry = self._read_cache(cpath, ttl=ttl)
             if entry is not None:
                 self.log["cache_hits"] += 1
                 self.log["endpoints"][path if not base else url] += 1
@@ -457,7 +501,7 @@ class FecClient:
             raise RuntimeError(f"HTTP {resp.status_code} on {path}: {resp.text[:300]}")
         raise RuntimeError(f"gave up on {path} after retries: {last_err}")
 
-    def paginate(self, path, params, mode="last_indexes"):
+    def paginate(self, path, params, mode="last_indexes", ttl=None):
         """Collects every result page. 'last_indexes' uses OpenFEC's keyset
         pagination (schedule_a/b/e); 'page' uses page numbers."""
         params = dict(params)
@@ -467,7 +511,7 @@ class FecClient:
             page = 1
             while True:
                 params["page"] = page
-                body = self.get(path, params)
+                body = self.get(path, params, ttl=ttl)
                 results.extend(body.get("results", []))
                 pages = (body.get("pagination") or {}).get("pages", 1) or 1
                 if page >= pages:
@@ -480,7 +524,7 @@ class FecClient:
             p = dict(params)
             if last:
                 p.update(last)
-            body = self.get(path, p)
+            body = self.get(path, p, ttl=ttl)
             batch = body.get("results", [])
             results.extend(batch)
             seen_pages += 1
@@ -503,7 +547,7 @@ def pull_candidate(client, cand, log):
     out = {}
     out["totals"] = client.get(f"/committee/{cid}/totals/", {"cycle": CYCLE}).get("results", [])
     out["reports"] = client.paginate(f"/committee/{cid}/reports/", {"cycle": CYCLE, "sort": "-coverage_end_date"}, mode="page")
-    out["efile_reports"] = client.paginate("/efile/reports/house_senate/", {"committee_id": cid, "sort": "-coverage_end_date"}, mode="page")
+    out["efile_reports"] = client.paginate("/efile/reports/house-senate/", {"committee_id": cid, "sort": "-receipt_date"}, mode="page")
     out["schedule_a"] = client.paginate("/schedules/schedule_a/", {
         "committee_id": cid, "two_year_transaction_period": CYCLE, "sort": "-contribution_receipt_date",
         "sort_null_only": "false",
@@ -529,22 +573,31 @@ def pull_candidate(client, cand, log):
     return out
 
 
-def pull_raw_after(client, cand, processed_through):
-    """Raw e-filed Schedule A/B rows newer than the processed coverage."""
+def pull_raw_after(client, cand, pulled):
+    """Raw e-filed Schedule A/B rows from filings the FEC has not yet
+    processed. Pulled from the timeline start; any row whose filing already
+    appears in the processed itemized data is dropped, so a report whose
+    summary is processed but whose line items still lag is not lost."""
     cid = cand["committee_id"]
-    if not processed_through:
-        return [], []
-    start = (dt.date.fromisoformat(processed_through) + dt.timedelta(days=1)).isoformat()
+    processed_files_a = {r.get("file_number") for r in pulled["schedule_a"] if r.get("file_number")}
+    processed_files_b = {r.get("file_number") for r in pulled["schedule_b"] if r.get("file_number")}
+    # Latest coverage end among reports whose line items the FEC has processed.
+    covered = [iso_date(r.get("coverage_end_date")) for r in pulled["reports"]
+               if first(r, "file_number", "fec_file_id") in (processed_files_a | processed_files_b) and r.get("coverage_end_date")]
+    start = (dt.date.fromisoformat(max(covered)) + dt.timedelta(days=1)).isoformat() if covered else f"{CYCLE - 1}-01-01"
+    pulled["itemized_processed_through"] = max(covered) if covered else None
     sched_a = client.paginate("/schedules/schedule_a/efile/", {"committee_id": cid, "min_date": start, "sort": "-contribution_receipt_date"}, mode="page")
     sched_b = client.paginate("/schedules/schedule_b/efile/", {"committee_id": cid, "min_date": start, "sort": "-disbursement_date"}, mode="page")
+    sched_a = [r for r in sched_a if r.get("file_number") not in processed_files_a]
+    sched_b = [r for r in sched_b if r.get("file_number") not in processed_files_b]
     return sched_a, sched_b
 
 
-def pull_primary_committee(client, pc):
+def pull_primary_committee(client, pc, ttl=None):
     return client.paginate("/schedules/schedule_a/", {
         "committee_id": pc["committee_id"], "two_year_transaction_period": CYCLE,
         "sort": "-contribution_receipt_date", "sort_null_only": "false",
-    })
+    }, ttl=ttl)
 
 
 def pull_contribution_limit(client, log):
@@ -581,11 +634,15 @@ def pull_contribution_limit(client, log):
 # F6 (48-hour notice) parsing
 # ---------------------------------------------------------------------------
 
+# Version 8.x Form 6 line layout (verified against live filings): the
+# contributor's FEC ID sits between ZIP and date; employer and occupation
+# follow the amount. The parser locates the eight-digit date rather than
+# trusting the position, so a shifted column is caught, not misread.
 F65_FIELDS = ["form_type", "filer_committee_id", "transaction_id", "entity_type", "contributor_organization_name",
               "contributor_last_name", "contributor_first_name", "contributor_middle_name", "contributor_prefix",
               "contributor_suffix", "contributor_street_1", "contributor_street_2", "contributor_city",
-              "contributor_state", "contributor_zip", "contributor_employer", "contributor_occupation",
-              "contribution_date", "contribution_amount"]
+              "contributor_state", "contributor_zip", "contributor_fec_id", "contribution_date", "contribution_amount",
+              "contributor_employer", "contributor_occupation"]
 
 
 def parse_f6(text, log):
@@ -625,17 +682,24 @@ def parse_f6(text, log):
     for line in lines:
         if not line.startswith("F65"):
             continue
-        parts = line.split(delim)
-        if len(parts) < len(F65_FIELDS):
+        parts = [v.strip().strip('"') for v in line.split(delim)]
+        if len(parts) < 18:
+            log["warnings"].append(f"F65 line with only {len(parts)} fields skipped")
             continue
         rec = dict(zip(F65_FIELDS, parts))
-        rec = {k: v.strip().strip('"') for k, v in rec.items()}
-        if not re.fullmatch(r"\d{8}", rec["contribution_date"] or ""):
-            log["warnings"].append("F65 line with unexpected date layout; amount left blank")
+        # Locate the date column (eight digits) after the address block.
+        date_idx = next((i for i in range(14, len(parts)) if re.fullmatch(r"\d{8}", parts[i])), None)
+        if date_idx is None:
+            log["warnings"].append("F65 line with no eight-digit date; amount left blank")
             rec["contribution_amount"] = None
+            rec["contribution_date"] = None
         else:
-            rec["contribution_amount"] = to_float(rec["contribution_amount"], None)
-        rec["contribution_date"] = iso_date(rec["contribution_date"]) if rec["contribution_date"] else None
+            if date_idx != 16:
+                log["warnings"].append(f"F65 date found at column {date_idx + 1}, not 17; employer and occupation read relative to it")
+            rec["contribution_date"] = iso_date(parts[date_idx])
+            rec["contribution_amount"] = to_float(parts[date_idx + 1] if date_idx + 1 < len(parts) else None, None)
+            rec["contributor_employer"] = parts[date_idx + 2] if date_idx + 2 < len(parts) else ""
+            rec["contributor_occupation"] = parts[date_idx + 3] if date_idx + 3 < len(parts) else ""
         rows.append(rec)
     return rows
 
@@ -654,8 +718,12 @@ def build_late_notices(client, cand, pulled, log):
             rec["sources"].add(src)
             rec["receipt_date"] = iso_date(first(f, "receipt_date", "filed_date", "load_timestamp")) or rec.get("receipt_date")
             rec["amendment_indicator"] = first(f, "amendment_indicator", default=rec.get("amendment_indicator"))
-            rec["previous_file_number"] = first(f, "previous_file_number", default=rec.get("previous_file_number"))
-            rec["most_recent"] = first(f, "most_recent", default=rec.get("most_recent", True))
+            prev = first(f, "previous_file_number", "amends_file", default=None)
+            if prev is not None and int(prev) != fn:
+                rec["previous_file_number"] = int(prev)
+            if f.get("most_recent") is False or f.get("amended_by"):
+                rec["most_recent"] = False
+            rec.setdefault("most_recent", True)
             rec["fec_url"] = first(f, "fec_url", default=rec.get("fec_url")) or DOCQUERY_FEC.format(file_number=fn)
             rec["pdf_url"] = first(f, "pdf_url", default=rec.get("pdf_url"))
             filings[fn] = rec
@@ -700,6 +768,7 @@ def build_late_notices(client, cand, pulled, log):
             "filing_page": DOCQUERY_FORM_PAGE.format(committee_id=cand["committee_id"], file_number=fn),
             "fec_url": rec["fec_url"], "pdf_url": rec.get("pdf_url"),
             "contributions": contributions, "total": round(total, 2), "count": len(contributions),
+            "before_window": bool(contributions) and all((x["date"] or "") < LATE_WINDOW_START for x in contributions),
         })
     log.setdefault("amendments_excluded", {})[f"{cand['key']}_f6"] = amendments_excluded
     return notices
@@ -718,7 +787,9 @@ def line_of(row):
 
 
 def election_bucket(row):
-    e = (row.get("election_type") or "").strip().upper()
+    e = (first(row, "election_type", "pgo", default="") or "").strip().upper()
+    if not e:
+        e = (row.get("fec_election_type_desc") or "").strip().upper()
     if not e:
         return "undesignated"
     if e.startswith("P"):
@@ -776,7 +847,7 @@ def pick_latest_report(reports, efile_reports, log, cand):
     fn = first(chosen, "file_number", "fec_file_id")
     rep = {
         "report_type": first(chosen, "report_type"),
-        "report_type_full": first(chosen, "report_type_full", "report_type"),
+        "report_type_full": sentence_display(first(chosen, "report_type_full", "report_type")),
         "coverage_start": iso_date(first(chosen, "coverage_start_date")),
         "coverage_end": iso_date(first(chosen, "coverage_end_date")),
         "filed": iso_date(first(chosen, "receipt_date")),
@@ -786,7 +857,7 @@ def pick_latest_report(reports, efile_reports, log, cand):
         "pdf_url": first(chosen, "pdf_url"),
         "source": "raw filing, not yet processed by the Federal Election Commission" if use_raw else "processed",
         "cash_on_hand": to_float(first(chosen, "cash_on_hand_end_period", default=None), None),
-        "debts": to_float(first(chosen, "debts_owed_by_committee", default=None), None),
+        "debts": to_float(first(chosen, "debts_owed_by_committee", "debts_owed_by_cmte", default=None), None),
         "receipts_cycle": to_float(first(chosen, "total_receipts_ytd", "total_receipts_cycle", default=None), None),
         "disbursements_cycle": to_float(first(chosen, "total_disbursements_ytd", "total_disbursements_cycle", default=None), None),
         "receipts_period": to_float(first(chosen, "total_receipts_period", "total_receipts", default=None), None),
@@ -846,6 +917,14 @@ def build_candidate(cand, pulled, raw_a, raw_b, limit, log):
     if not totals:
         log["warnings"].append(f"{cand['name']}: no processed committee totals for cycle {CYCLE}")
 
+    # The filer's own cycle-to-date column on the latest processed report,
+    # for disclosure when it differs from the FEC's processed total.
+    filed = {}
+    if processed_reports:
+        lp = processed_reports[0]
+        filed = {"receipts": to_float(first(lp, "total_receipts_ytd", default=None), None),
+                 "disbursements": to_float(first(lp, "total_disbursements_ytd", default=None), None),
+                 "report": sentence_display(first(lp, "report_type_full", "report_type"))}
     categories = category_totals_from(totals)
     calculated = sum(categories.values())
     reported = to_float(first(totals, "receipts", default=0))
@@ -869,10 +948,13 @@ def build_candidate(cand, pulled, raw_a, raw_b, limit, log):
     all_keys = set()
     per_donor_general = Counter()
     per_donor_primary = Counter()
-    for r in ind:
+    raw_split = Counter()
+    for r in ind + ind_raw:
         b = election_bucket(r)
         amt = to_float(r.get("contribution_receipt_amount"))
         split[b] += amt
+        if r.get("_raw"):
+            raw_split[b] += amt
         key = name_key(r.get("contributor_last_name"), r.get("contributor_first_name"), r.get("contributor_name")) + "|" + zip5(r.get("contributor_zip"))
         split_counts[b].add(key)
         all_keys.add(key)
@@ -892,8 +974,9 @@ def build_candidate(cand, pulled, raw_a, raw_b, limit, log):
         "contributors": {k: len(v) for k, v in split_counts.items()},
         "contributors_total": len(all_keys),
         "at_limit_general": at_limit_general, "at_limit_primary": at_limit_primary,
-        "raw_general": round(sum(to_float(r.get("contribution_receipt_amount")) for r in ind_raw if election_bucket(r) == "general"), 2),
-        "raw_primary": round(sum(to_float(r.get("contribution_receipt_amount")) for r in ind_raw if election_bucket(r) == "primary"), 2),
+        "raw_general": round(raw_split["general"], 2), "raw_primary": round(raw_split["primary"], 2),
+        "raw_undesignated": round(raw_split["undesignated"] + raw_split["other"], 2),
+        "raw_total": round(sum(raw_split.values()), 2),
     }
 
     # geography (processed itemized individual rows)
@@ -904,8 +987,11 @@ def build_candidate(cand, pulled, raw_a, raw_b, limit, log):
     district_towns = Counter()
     district_donors = defaultdict(set)
     town_display = {}
-    for r in ind:
+    raw_geo_total = 0.0
+    for r in ind + ind_raw:
         amt = to_float(r.get("contribution_receipt_amount"))
+        if r.get("_raw"):
+            raw_geo_total += amt
         st = (r.get("contributor_state") or "").strip().upper()
         city = clean(r.get("contributor_city")).upper()
         bucket = geo_bucket(st, r.get("contributor_zip"), city)
@@ -937,7 +1023,7 @@ def build_candidate(cand, pulled, raw_a, raw_b, limit, log):
     geography = {
         "in_district": round(geo["in_district"], 2), "ma_other": round(geo["ma_other"], 2),
         "out_of_state": round(geo["out_of_state"], 2), "unknown": round(geo["unknown"], 2),
-        "located_total": round(geo_total, 2),
+        "located_total": round(geo_total, 2), "raw_total": round(raw_geo_total, 2),
         "top_towns": [[k, round(v, 2), len(town_donors[k])] for k, v in towns.most_common(15)],
         "by_state": [[k, round(v, 2)] for k, v in states.most_common()],
         "district_towns": district_table,
@@ -945,15 +1031,21 @@ def build_candidate(cand, pulled, raw_a, raw_b, limit, log):
 
     # spending categories (processed, non-memo Schedule B)
     sched_b = [r for r in pulled["schedule_b"] if not is_memo(r)]
+    raw_b_rows = [r for r in raw_b if not is_memo(r)]
     spend = Counter()
-    for r in sched_b:
-        spend[categorize_purpose(first(r, "disbursement_description", "disbursement_purpose_category", default=""))] += to_float(r.get("disbursement_amount"))
+    raw_spend_total = 0.0
+    for r in sched_b + raw_b_rows:
+        amt = to_float(r.get("disbursement_amount"))
+        spend[categorize_purpose(first(r, "disbursement_description", "disbursement_purpose_category", default=""))] += amt
+        if r in raw_b_rows:
+            raw_spend_total += amt
     spending = {
         "by_category": {k: round(spend[k], 2) for k in SPEND_ORDER if spend[k]},
         "itemized_total": round(sum(spend.values()), 2),
+        "raw_total": round(raw_spend_total, 2),
         "reported_total_disbursements": disbursements,
-        "rows": len(sched_b),
-        "raw_rows_after_processed": len([r for r in raw_b if not is_memo(r)]),
+        "rows": len(sched_b) + len(raw_b_rows),
+        "raw_rows": len(raw_b_rows),
     }
 
     # weekly timeline since Sept. 2: processed plus raw rows after processed coverage
@@ -983,14 +1075,14 @@ def build_candidate(cand, pulled, raw_a, raw_b, limit, log):
 
     # party money: party-committee contributions (line 11B or party entity) and Schedule F
     party_rows = []
-    for r in sched_a:
+    for r in sched_a + sched_a_raw:
         if is_memo(r):
             continue
         if line_of(r) == "11B" or (r.get("entity_type") or "").strip().upper() == "PTY":
             fn = r.get("file_number")
             party_rows.append({
                 "committee": title_display(r.get("contributor_name")), "amount": to_float(r.get("contribution_receipt_amount")),
-                "date": row_date(r), "election": election_bucket(r),
+                "date": row_date(r), "election": election_bucket(r), "raw": bool(r.get("_raw")),
                 "filing_page": DOCQUERY_FORM_PAGE.format(committee_id=cand["committee_id"], file_number=fn) if fn else None,
             })
     coordinated = []
@@ -1003,7 +1095,7 @@ def build_candidate(cand, pulled, raw_a, raw_b, limit, log):
             "committee": title_display(first(r, "committee_name", default=(r.get("committee") or {}).get("name") if isinstance(r.get("committee"), dict) else None)),
             "committee_id": pcid,
             "amount": to_float(r.get("expenditure_amount")), "date": row_date(r),
-            "purpose": clean(first(r, "expenditure_purpose_full", "expenditure_description", default="")),
+            "purpose": sentence_display(first(r, "expenditure_purpose_full", "expenditure_description", default="")),
             "payee": title_display(r.get("payee_name")),
             "filing_page": DOCQUERY_FORM_PAGE.format(committee_id=pcid, file_number=fn) if fn and pcid else None,
             "pdf_url": r.get("pdf_url"),
@@ -1029,6 +1121,9 @@ def build_candidate(cand, pulled, raw_a, raw_b, limit, log):
             "receipts": receipts, "disbursements": disbursements, "cash_on_hand": cash, "debts": debts,
             "spending_rate": spending_rate, "source": totals_source,
             "processed_through": processed_through,
+            "itemized_processed_through": pulled.get("itemized_processed_through"),
+            "filed_cycle": filed,
+            "raw_through": max([row_date(r) for r in sched_a_raw if row_date(r)] + [row_date(r) for r in raw_b if row_date(r)], default=None),
             "individual_itemized": to_float(first(totals, "individual_itemized_contributions", default=None), None),
             "individual_unitemized": to_float(first(totals, "individual_unitemized_contributions", default=None), None),
             "refunds": to_float(first(totals, "contribution_refunds", default=None), None),
@@ -1036,7 +1131,7 @@ def build_candidate(cand, pulled, raw_a, raw_b, limit, log):
         },
         "latest_report": latest,
         "reports_on_file": [
-            {"report_type_full": first(r, "report_type_full", "report_type"), "coverage_start": iso_date(r.get("coverage_start_date")),
+            {"report_type_full": sentence_display(first(r, "report_type_full", "report_type")), "coverage_start": iso_date(r.get("coverage_start_date")),
              "coverage_end": iso_date(r.get("coverage_end_date")), "filed": iso_date(r.get("receipt_date")),
              "receipts_period": to_float(first(r, "total_receipts_period", default=None), None),
              "disbursements_period": to_float(first(r, "total_disbursements_period", default=None), None),
@@ -1057,7 +1152,7 @@ def build_candidate(cand, pulled, raw_a, raw_b, limit, log):
             "schedule_b_memo_rows": sum(1 for r in pulled["schedule_b"] if is_memo(r)),
             "raw_schedule_a_rows": len(raw_a), "raw_schedule_b_rows": len(raw_b),
         },
-        "_individual_rows": ind,          # stripped before writing
+        "_individual_rows": ind + ind_raw,  # stripped before writing
         "_individual_rows_raw": ind_raw,  # stripped before writing
     }
 
@@ -1067,13 +1162,56 @@ def build_candidate(cand, pulled, raw_a, raw_b, limit, log):
 # ---------------------------------------------------------------------------
 
 def build_outside_spending(cands, pulled_by_key, log):
+    """Independent expenditures naming either candidate.
+
+    The same expenditure can reach the FEC up to four ways: on a 24- or
+    48-hour notice (Form 24) and later on the group's regular report (Form
+    3X or 5), each of which exists first as a raw e-filing and then as
+    processed data, and raw amounts arrive without cents. Rows are grouped
+    by spender, side, whole-dollar amount, payee and date, and one row is
+    kept per group in this order: processed report, processed notice, raw
+    report, raw notice. Every notice row is kept separately for the
+    24-hour list in the late-money section."""
     rows = []
+    notices = []
     amendments_excluded = 0
-    notices_dropped = 0
+    duplicates_dropped = 0
+
+    def sig(r):
+        return (first(r, "committee_id"), (r.get("support_oppose_indicator") or "").upper(),
+                int(to_float(r.get("expenditure_amount"))), re.sub(r"[^A-Z0-9]", "", clean(r.get("payee_name")).upper()),
+                iso_date(first(r, "dissemination_date", "expenditure_date")))
+
+    def make_row(cand, src, r):
+        is_notice = bool(r.get("is_notice")) or (r.get("filing_form") or "").upper() in ("F24", "F5N") or (r.get("report_type") or "").upper() in ("24", "48", "F24N", "F24A")
+        fn = first(r, "file_number")
+        cm = r.get("committee") if isinstance(r.get("committee"), dict) else {}
+        group = title_display(first(r, "committee_name", "filer_name", default=None) or cm.get("name") or first(r, "committee_id"))
+        spender_id = first(r, "committee_id") or cm.get("committee_id")
+        raw = src == "raw"
+        return {
+            "candidate_key": cand["key"], "candidate": cand["name"],
+            "group": group, "group_id": spender_id,
+            "group_fec_url": f"https://www.fec.gov/data/committee/{spender_id}/" if spender_id else None,
+            "side": "support" if (r.get("support_oppose_indicator") or "").upper() == "S" else "oppose",
+            "election": election_bucket(r) if not raw else ("general" if election_bucket(r) == "general" else "primary" if election_bucket(r) == "primary" else "not_stated"),
+            "amount": round(to_float(r.get("expenditure_amount")), 2),
+            "purpose": sentence_display(first(r, "expenditure_description", "category_code_full", default="")),
+            "payee": title_display(r.get("payee_name")),
+            "date": iso_date(first(r, "dissemination_date", "expenditure_date")),
+            "expenditure_date": iso_date(r.get("expenditure_date")),
+            "form": (r.get("filing_form") or "").upper() or None,
+            "is_notice": is_notice,
+            "source": "raw filing, not yet processed by the Federal Election Commission" if raw else "processed",
+            "file_number": fn,
+            "filing_page": DOCQUERY_FORM_PAGE.format(committee_id=spender_id, file_number=fn) if fn and spender_id else None,
+            "pdf_url": r.get("pdf_url"),
+            "_rank": (0 if not raw else 2) + (1 if is_notice else 0),
+        }
+
     for cand in cands:
         p = pulled_by_key[cand["key"]]
-        seen = set()
-        combined = []
+        groups = {}
         for src, lst in (("processed", p["schedule_e"]), ("raw", p["schedule_e_efile"])):
             for r in lst:
                 if is_memo(r):
@@ -1081,59 +1219,50 @@ def build_outside_spending(cands, pulled_by_key, log):
                 if r.get("most_recent") is False:
                     amendments_excluded += 1
                     continue
-                combined.append((src, r))
-        # A 24/48-hour notice that later appears on a regular report is dropped
-        # in favor of the report row: same spender, side, amount, payee and date.
-        def sig(r):
-            return (first(r, "committee_id"), (r.get("support_oppose_indicator") or "").upper(),
-                    round(to_float(r.get("expenditure_amount")), 2), clean(r.get("payee_name")).upper(),
-                    iso_date(first(r, "dissemination_date", "expenditure_date")))
-        report_sigs = {sig(r) for src, r in combined if src == "processed" and not r.get("is_notice")}
-        for src, r in combined:
-            s = sig(r)
-            is_notice = bool(r.get("is_notice")) or (r.get("filing_form") or "").upper() in ("F24", "F5N")
-            if (is_notice or src == "raw") and s in report_sigs:
-                notices_dropped += 1
-                continue
-            fn = first(r, "file_number")
-            tid = first(r, "transaction_id", "sub_id")
-            dedupe = (fn, tid, s)
-            if dedupe in seen:
-                continue
-            seen.add(dedupe)
-            cm = r.get("committee") if isinstance(r.get("committee"), dict) else {}
-            group = title_display(first(r, "committee_name", "filer_name", default=None) or cm.get("name") or first(r, "committee_id"))
-            spender_id = first(r, "committee_id") or cm.get("committee_id")
-            rows.append({
-                "candidate_key": cand["key"], "candidate": cand["name"],
-                "group": group, "group_id": spender_id,
-                "group_fec_url": f"https://www.fec.gov/data/committee/{spender_id}/" if spender_id else None,
-                "side": "support" if (r.get("support_oppose_indicator") or "").upper() == "S" else "oppose",
-                "amount": round(to_float(r.get("expenditure_amount")), 2),
-                "purpose": clean(first(r, "expenditure_description", "category_code_full", default="")),
-                "payee": title_display(r.get("payee_name")),
-                "date": iso_date(first(r, "dissemination_date", "expenditure_date")),
-                "expenditure_date": iso_date(r.get("expenditure_date")),
-                "form": (r.get("filing_form") or "").upper() or None,
-                "is_notice": is_notice,
-                "source": "raw filing, not yet processed by the Federal Election Commission" if src == "raw" else "processed",
-                "file_number": fn,
-                "filing_page": DOCQUERY_FORM_PAGE.format(committee_id=spender_id, file_number=fn) if fn and spender_id else None,
-                "pdf_url": r.get("pdf_url"),
-            })
+                row = make_row(cand, src, r)
+                groups.setdefault(sig(r), []).append(row)
+        kept = []
+        for key, cand_rows in groups.items():
+            cand_rows.sort(key=lambda x: x["_rank"])
+            kept.append(cand_rows[0])
+            duplicates_dropped += len(cand_rows) - 1
+            notice_rows = [x for x in cand_rows if x["is_notice"]]
+            if notice_rows:
+                notices.append(notice_rows[0])
+        # A notice often carries an estimate that the regular report later
+        # states exactly, so a kept notice is dropped from the totals when
+        # the same group reports the same payee, same side, within seven days.
+        def payee_key(x):
+            return re.sub(r"[^A-Z0-9]", "", (x["payee"] or "").upper())
+        report_rows = [x for x in kept if not x["is_notice"]]
+        for x in kept:
+            if x["is_notice"]:
+                twin = next((y for y in report_rows if y["group_id"] == x["group_id"] and y["side"] == x["side"]
+                             and payee_key(y) == payee_key(x) and x["date"] and y["date"]
+                             and abs((dt.date.fromisoformat(y["date"]) - dt.date.fromisoformat(x["date"])).days) <= 7), None)
+                if twin:
+                    duplicates_dropped += 1
+                    continue
+            rows.append(x)
+    for r in rows + notices:
+        r.pop("_rank", None)
     rows.sort(key=lambda x: (x["date"] or "", x["amount"]), reverse=True)
+    notices.sort(key=lambda x: (x["date"] or "", x["amount"]), reverse=True)
     by_group = Counter()
     by_group_side = defaultdict(lambda: Counter())
-    by_side = {c["key"]: {"support": 0.0, "oppose": 0.0, "count": 0} for c in cands}
+    by_side = {c["key"]: {"support": 0.0, "oppose": 0.0, "support_general": 0.0, "oppose_general": 0.0, "count": 0} for c in cands}
     for r in rows:
         by_group[r["group"]] += r["amount"]
         by_group_side[r["group"]][f"{r['candidate_key']}_{r['side']}"] += r["amount"]
         by_side[r["candidate_key"]][r["side"]] += r["amount"]
+        if r["election"] == "general":
+            by_side[r["candidate_key"]][r["side"] + "_general"] += r["amount"]
         by_side[r["candidate_key"]]["count"] += 1
     log.setdefault("amendments_excluded", {})["independent_expenditures"] = amendments_excluded
-    log["ie_notices_superseded_by_reports"] = notices_dropped
+    log["ie_duplicate_rows_dropped"] = duplicates_dropped
     return {
         "rows": rows,
+        "notices": notices,
         "by_group": [{"group": g, "total": round(t, 2),
                       **{f"{c['key']}_{side}": round(by_group_side[g][f"{c['key']}_{side}"], 2) for c in cands for side in ("support", "oppose")}}
                      for g, t in by_group.most_common()],
@@ -1142,8 +1271,8 @@ def build_outside_spending(cands, pulled_by_key, log):
     }
 
 
-def build_ie_24h(outside_rows):
-    return sorted([r for r in outside_rows if r["is_notice"]], key=lambda r: (r["date"] or "", r["amount"]), reverse=True)
+def build_ie_24h(outside):
+    return outside["notices"]
 
 
 # ---------------------------------------------------------------------------
@@ -1173,7 +1302,7 @@ def build_crossover(cands, general_candidates, primary_pulled, log):
             d = row_date(r)
             amt = to_float(r.get("contribution_receipt_amount"))
             rec = primary_donors.setdefault(key, {})
-            e = rec.setdefault(pc["key"], {"first_date": d, "total": 0.0, "name": title_display(r.get("contributor_name")),
+            e = rec.setdefault(pc["key"], {"first_date": d, "total": 0.0, "name": person_display(r),
                                            "city": title_display(r.get("contributor_city")), "state": (r.get("contributor_state") or "").upper()})
             e["total"] += amt
             if d and (e["first_date"] is None or d < e["first_date"]):
@@ -1193,11 +1322,13 @@ def build_crossover(cands, general_candidates, primary_pulled, log):
             earlier = {pk: e for pk, e in primary_donors[key].items() if e["first_date"] and d and d > e["first_date"]}
             if not earlier:
                 continue
-            m = matches.setdefault(key, {"name": title_display(r.get("contributor_name")), "city": title_display(r.get("contributor_city")),
+            m = matches.setdefault(key, {"name": person_display(r), "city": title_display(r.get("contributor_city")),
                                          "state": (r.get("contributor_state") or "").upper(), "general_total": 0.0,
                                          "general_after_primary": 0.0, "first_general_date": d, "last_general_date": d,
-                                         "primary": {}})
+                                         "primary": {}, "raw": False})
             m["general_total"] += amt
+            if r.get("_raw"):
+                m["raw"] = True
             if d and d > PRIMARY_DATE:
                 m["general_after_primary"] += amt
             if d and d < m["first_general_date"]:
@@ -1221,6 +1352,7 @@ def build_crossover(cands, general_candidates, primary_pulled, log):
                 "general_total": round(m["general_total"], 2),
                 "general_after_primary": round(m["general_after_primary"], 2),
                 "first_general_date": m["first_general_date"], "last_general_date": m["last_general_date"],
+                "raw": m["raw"],
             })
         summary[gc["key"]] = {
             "matches": len(matches), "dollars": round(sum(m["general_total"] for m in matches.values()), 2),
@@ -1266,6 +1398,8 @@ def main():
     ap.add_argument("--out-dir", default=DATA_DIR)
     ap.add_argument("--rate-limit", type=int, default=int(os.environ.get("FEC_RATE_LIMIT", "60")))
     ap.add_argument("--rate-window-seconds", type=int, default=int(os.environ.get("FEC_RATE_WINDOW_SECONDS", "60")))
+    ap.add_argument("--primary-cache-ttl-hours", type=float, default=float(os.environ.get("FEC_PRIMARY_CACHE_TTL_HOURS", str(24 * 14))),
+                    help="cache life for the six primary committees, whose campaigns are over")
     args = ap.parse_args()
 
     started = time.time()
@@ -1289,14 +1423,12 @@ def main():
     for cand in CANDIDATES:
         print(f"Pulling {cand['name']} ({cand['committee_id']}) ...")
         pulled[cand["key"]] = pull_candidate(client, cand, log)
-        totals = pulled[cand["key"]]["totals"]
-        processed_through = iso_date(first(totals[0], "coverage_end_date", default=None)) if totals else None
-        raw_after[cand["key"]] = pull_raw_after(client, cand, processed_through)
+        raw_after[cand["key"]] = pull_raw_after(client, cand, pulled[cand["key"]])
 
     primary_pulled = {}
     for pc in PRIMARY_COMMITTEES:
         print(f"Pulling primary-season donors for {pc['name']} ({pc['committee_id']}) ...")
-        primary_pulled[pc["key"]] = pull_primary_committee(client, pc)
+        primary_pulled[pc["key"]] = pull_primary_committee(client, pc, ttl=dt.timedelta(hours=args.primary_cache_ttl_hours))
 
     print("Building ...")
     candidates = []
@@ -1341,7 +1473,7 @@ def main():
         "outside_spending": outside,
         "late_money": {
             "window_start": LATE_WINDOW_START, "window_end": LATE_WINDOW_END,
-            "notices_48h": notices, "ie_24h": build_ie_24h(outside["rows"]),
+            "notices_48h": notices, "ie_24h": build_ie_24h(outside),
             "last_checked": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "last_checked_display": ap_datetime(now),
         },
         "crossover": crossover,
@@ -1352,7 +1484,7 @@ def main():
             "crossover_rule": CROSSOVER_RULE,
             "reconciliation_tolerance": RECONCILIATION_TOLERANCE,
             "amendments_excluded": log.get("amendments_excluded", {}),
-            "ie_notices_superseded_by_reports": log.get("ie_notices_superseded_by_reports", 0),
+            "ie_duplicate_rows_dropped": log.get("ie_duplicate_rows_dropped", 0),
         },
     }
 

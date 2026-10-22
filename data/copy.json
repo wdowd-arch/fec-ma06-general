@@ -1,7 +1,8 @@
 {
   "_note": "Editor-owned. build_data.py never writes this file. Write the headline and dek only after reviewing a fresh build, on the most newsworthy verified finding, applying the same standard to both candidates. Rules: sentence-style capitalization; present tense; never begin with an article; never split a verb phrase; the dek must not repeat any word in the headline; curly quotes only.",
-  "status": "placeholder",
-  "headline": "Koh and Jones report their money for the Nov. 3 vote",
-  "dek": "Receipts, spending, outside groups, late contributions, donor crossover: what Federal Election Commission (FEC) filings show in Massachusetts’ 6th Congressional District (MA-06).",
+  "status": "written",
+  "written_from": "Build of Oct. 22, 2026: October quarterly reports covering through Sept. 30, 2026, cash on hand $999,275.05 (Koh) and $215,471.09 (Jones), cycle receipts $5,251,469.39 and $586,090.76, cycle disbursements $4,253,534.06 and $370,619.67.",
+  "headline": "Koh starts October with $999,275 on hand to Jones’ $215,471",
+  "dek": "A Democrat who has raised $5.3 million and spent $4.3 million faces a Republican who has raised $586,091 and spent $370,620, Federal Election Commission (FEC) filings through Sept. 30 show for Massachusetts’ 6th Congressional District (MA-06).",
   "byline": "By Will Dowd"
 }
