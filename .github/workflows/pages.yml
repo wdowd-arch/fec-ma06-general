@@ -1,0 +1,43 @@
+# Publishes the dashboard to GitHub Pages at
+# https://wdowd-arch.github.io/fec-ma06-general/
+# The site is the repository as committed: index.html, styles.css, app.js,
+# data/ and assets/. Nothing is built here; the data files are whatever
+# build_data.py last committed. Requires the repository's Pages source to be
+# "GitHub Actions" (Settings, Pages, Build and deployment).
+name: Deploy dashboard to GitHub Pages
+
+on:
+  push:
+    branches: [main, claude/trusting-gauss-nlmxww]
+    paths: [index.html, styles.css, app.js, "data/**", "assets/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble the site
+        run: |
+          mkdir -p _site/data _site/assets/images
+          cp index.html styles.css app.js _site/
+          cp data/dashboard.json data/build_log.json data/copy.json data/us-states-paths.json _site/data/
+          cp assets/images/nameplate-horizontal.png _site/assets/images/
+          touch _site/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
