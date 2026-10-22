@@ -1,6 +1,6 @@
 {
- "started_at": "2026-10-22T20:29:45.021310+00:00",
- "mode": "offline-cache",
+ "started_at": "2026-10-22T20:47:50.906144+00:00",
+ "mode": "live",
  "api_base": "https://api.open.fec.gov/v1",
  "cycle": 2026,
  "endpoints": {
@@ -27,8 +27,8 @@
   "https://www.fec.gov/help-candidates-and-committees/candidate-taking-receipts/contribution-limits": 1
  },
  "warnings": [],
- "requests": 0,
- "cache_hits": 192,
+ "requests": 127,
+ "cache_hits": 65,
  "rate_limit_pauses": 0,
  "backoffs": 0,
  "amendments_excluded": {
@@ -39,8 +39,8 @@
   "jones_f6": 1
  },
  "ie_duplicate_rows_dropped": 72,
- "finished_at": "2026-10-22T20:29:46.413115+00:00",
- "run_seconds": 1.4,
+ "finished_at": "2026-10-22T20:50:59.716854+00:00",
+ "run_seconds": 188.8,
  "record_counts": {
   "koh": {
    "schedule_a_rows": 6859,
@@ -93,7 +93,7 @@
  "contribution_limit": {
   "individual_per_election": 3500,
   "source_url": "https://www.fec.gov/help-candidates-and-committees/candidate-taking-receipts/contribution-limits/",
-  "retrieved_at": "2026-10-22T20:29:45.023528+00:00",
+  "retrieved_at": "2026-10-22T20:47:51.438018+00:00",
   "status": "retrieved",
   "cycle_label": "2025-26"
  },

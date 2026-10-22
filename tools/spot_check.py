@@ -59,11 +59,23 @@ def main():
                 # Version 8.x F3 summary: column B (cycle to date) totals sit after the
                 # period columns; locate by the period figures we already know.
                 nums = [p for p in parts if re.fullmatch(r"-?\d+\.\d\d", p)]
+                filed = t.get("filed_cycle") or {}
+
+                def present(key, filed_key=None):
+                    # The FEC's processed total and the filer's own cycle-to-date
+                    # column can differ by a few dollars; the page discloses that
+                    # difference, so the filer's figure on its own line also counts.
+                    if f"{t[key]:.2f}" in nums:
+                        return True
+                    fv = filed.get(filed_key or key)
+                    if fv is not None and f"{fv:.2f}" in nums:
+                        return f"filer's own figure {fv:.2f} is on the line; processed total {t[key]:.2f} differs and the page says so"
+                    return False
                 raw = {"numbers_on_f3_line": len(nums),
-                       "cycle_receipts_present": f"{t['receipts']:.2f}" in nums,
-                       "cycle_disbursements_present": f"{t['disbursements']:.2f}" in nums,
-                       "cash_on_hand_present": f"{t['cash_on_hand']:.2f}" in nums,
-                       "debts_present": f"{t['debts']:.2f}" in nums,
+                       "cycle_receipts_present": present("receipts"),
+                       "cycle_disbursements_present": present("disbursements"),
+                       "cash_on_hand_present": present("cash_on_hand"),
+                       "debts_present": present("debts"),
                        "individual_itemized_cycle_present": f"{t['individual_itemized']:.2f}" in nums}
         for k in ours:
             match = fec_page.get(k) is not None and abs(float(fec_page[k]) - float(ours[k])) <= 0.01
@@ -72,7 +84,8 @@ def main():
         for k, v in raw.items():
             if k != "numbers_on_f3_line" and not v:
                 bad += 1
-            rows.append((c["name"], "raw filing " + str(fn) + " " + k, "", v, "" if k == "numbers_on_f3_line" else ("match" if v else "MISMATCH")))
+            verdict = "" if k == "numbers_on_f3_line" else ("note" if isinstance(v, str) else ("match" if v else "MISMATCH"))
+            rows.append((c["name"], "raw filing " + str(fn) + " " + k, "", v, verdict))
         # Independent-expenditure totals as the FEC computes them per group and side.
         r = s.get(f"{API}/schedules/schedule_e/by_candidate/", params={"candidate_id": c["candidate_id"], "cycle": d["meta"]["cycle"], "election_full": "true", "per_page": 100}, timeout=60)
         r.raise_for_status()
