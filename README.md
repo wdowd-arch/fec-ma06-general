@@ -22,8 +22,10 @@ assets/images/         nameplate
 tools/copy_audit.py    copy audit on the rendered page
 tools/check_no_key.py  fails if the API key appears anywhere in the tree
 tools/spot_check.py    compares the build with the FEC's own totals
-tools/make_embed.py    writes ghost/embed.html from index.html
+tools/make_embed.py    writes ghost/embed.html from index.html and ghost/manifest.json
+tools/publish_ghost.py one-command daily refresh: build, spot-check, upload, update the page
 ghost/embed.html       the Ghost HTML card (generated)
+ghost/manifest.json    URLs Ghost assigned to the uploaded files (written by publish_ghost.py)
 ghost/UPLOAD.md        publishing steps for marbleheadindependent.com/ma-06-general/
 cache/                 API response cache (gitignored)
 ```
@@ -166,23 +168,22 @@ python3 -m http.server 8000
 
 ## Publish on marbleheadindependent.com/ma-06-general/
 
-The page is a Ghost page containing one HTML card. `ghost/embed.html` is exactly what goes in
-the card: a script holding the one base URL for the uploaded files (`MA06_BASE`), the
-`<div id="ma06-app">` block from `index.html`, and the loader for `app.js`. It is generated
-from `index.html` by `tools/make_embed.py`; rerun that after any change to the page markup.
+The page is a Ghost page containing one HTML card, `ghost/embed.html`: a script holding the
+uploaded files' URLs, the `<div id="ma06-app">` block from `index.html`, and the loader for
+`app.js`. `tools/publish_ghost.py` does the whole refresh in one command, reading every
+credential from the environment:
 
 ```bash
-python3 tools/make_embed.py      # regenerates ghost/embed.html
+export FEC_API_KEY=... GHOST_ADMIN_API_KEY=id:secret GHOST_ADMIN_URL=https://www.marbleheadindependent.com
+python3 tools/publish_ghost.py --setup   # once: upload every file, create the page as a draft
+python3 tools/publish_ghost.py           # daily: build, spot-check, upload the data, update the card
 ```
 
-Files uploaded to `https://www.marbleheadindependent.com/content/files/ma06-general/`:
-`styles.css`, `app.js`, `data/dashboard.json`, `data/build_log.json`, `data/copy.json`,
-`data/us-states-paths.json` and `assets/images/nameplate-horizontal.png`. After each daily
-build only `data/dashboard.json` and `data/build_log.json` change (plus `data/copy.json` when
-the headline changes); the page itself is never edited.
-
-Step-by-step instructions, including the page slug, canonical URL, meta title and
-description, and what to do if Ghost cannot host the folder layout, are in
+The daily run stops if the build or the spot-check fails, uploads only `data/dashboard.json`
+and `data/build_log.json` (plus `data/copy.json` when the headline changed), records the
+URLs Ghost assigned in `ghost/manifest.json`, regenerates `ghost/embed.html` with
+`tools/make_embed.py` and rewrites the page's card without changing its draft or published
+status. Step-by-step instructions, the manual alternative and what to publish are in
 **[ghost/UPLOAD.md](ghost/UPLOAD.md)**.
 
 Every style rule is scoped under `#ma06-app`, so the theme's own styles are untouched, and the

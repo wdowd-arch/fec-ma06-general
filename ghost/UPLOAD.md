@@ -15,61 +15,58 @@ end up somewhere else, change that one line and paste the card again.
 
 ## 1. Upload the files
 
-Upload these seven files, keeping the folder layout:
+`tools/publish_ghost.py` does the uploads and the page through the Ghost Admin API. Set the
+three credentials in the shell (never in a file in this repository) and run the one-time
+setup, which uploads every file and creates the page as a draft:
 
-```
-content/files/ma06-general/
-├── styles.css
-├── app.js
-├── data/
-│   ├── dashboard.json
-│   ├── build_log.json
-│   ├── copy.json
-│   └── us-states-paths.json
-└── assets/images/
-    └── nameplate-horizontal.png
+```bash
+export FEC_API_KEY=...               # OpenFEC key
+export GHOST_ADMIN_API_KEY=id:secret # Ghost Admin, Settings, Integrations, Custom integration
+export GHOST_ADMIN_URL=https://www.marbleheadindependent.com
+python3 tools/publish_ghost.py --setup
 ```
 
-Ghost(Pro) has no file manager that lets you pick a folder, so use whichever of these the
-site already has:
+Ghost stores uploads at `/content/files/<year>/<month>/<name>` (images under
+`/content/images/`) and renames a repeat upload (`dashboard-2.json`), so the script records
+each file's exact URL in `ghost/manifest.json`, regenerates `ghost/embed.html` from it, and
+writes the card to the page. The embed's top block holds those URLs; nothing else needs the
+folder layout.
 
-- **The theme repo's assets folder.** Put the files under `assets/ma06-general/` in
-  `wdowd-arch/marblehead-independent-theme` and let the existing GitHub Actions deploy push
-  them; then set `MA06_BASE` to
-  `https://www.marbleheadindependent.com/assets/ma06-general/`. This is the cleanest route
-  because a push updates the data files in one step.
-- **SFTP or the host's file access**, if your Ghost plan allows it, straight into
-  `content/files/ma06-general/`.
-- **The editor's File card** as a fallback. Ghost stores each upload at
-  `/content/files/<year>/<month>/<name>` and will not keep the `data/` and `assets/`
-  subfolders, so this route needs every file in one folder and `MA06_BASE` plus the
-  `data/` suffix adjusted in the card script (`window.MA06_DATA_BASE = MA06_BASE;`).
+If you prefer to upload by hand, the seven files are:
 
-After uploading, open `https://www.marbleheadindependent.com/content/files/ma06-general/data/dashboard.json`
-in a browser. It must return JSON, not a 404.
+```
+styles.css
+app.js
+data/dashboard.json
+data/build_log.json
+data/copy.json
+data/us-states-paths.json
+assets/images/nameplate-horizontal.png
+```
 
-## 2. Create the page
+Put them anywhere that serves them (one folder is simplest), then either edit
+`ghost/manifest.json` with the URLs and run `python3 tools/make_embed.py`, or run
+`python3 tools/make_embed.py --base <folder URL>` if every file sits in that one folder
+under its original name. Open the dashboard.json URL in a browser afterward; it must return
+JSON, not a 404.
 
-1. Ghost Admin, **Pages**, **New page**.
-2. Title: `MA-06 general election money` (the H1 inside the card carries the real headline;
-   the page title is for the browser tab and the admin list).
-3. Click the **+** in the editor, choose **HTML**, and paste the entire contents of
-   `ghost/embed.html` into the card. Nothing else goes on the page.
-4. Open the page settings (the gear icon, top right).
-   - **Page URL**: `ma-06-general`
-   - **Excerpt**: leave empty.
-   - Untick **Show title and feature image** if the theme offers it, so the nameplate
-     and headline inside the card are the first thing on the page.
-5. In the same settings panel, open **Meta data**:
-   - **Meta title**: `MA-06 general election money — The Marblehead Independent`
-   - **Meta description**: `Dan Koh and Micah Jones head to head on receipts, spending,
-     outside money, late contributions and donor geography in the Nov. 3, 2026, general
-     election for Massachusetts' 6th Congressional District, built from Federal Election
-     Commission filings.`
-   - **Canonical URL**: `https://www.marbleheadindependent.com/ma-06-general/`
-6. Optional, under **X card** and **Facebook card**: the same title and description.
-   Ghost generates the Open Graph tags from these, which is why the card itself has none.
-7. **Preview**, scroll the whole page on a phone-width preview, then **Publish**.
+## 2. The page
+
+`--setup` creates the page with slug `ma-06-general`, title `MA-06 general election money`,
+meta title `MA-06 general election money — The Marblehead Independent`, the meta
+description from `index.html`, canonical URL `https://www.marbleheadindependent.com/ma-06-general/`
+and one HTML card holding `ghost/embed.html`, left as a draft. The script prints the draft
+preview link (`/p/<uuid>/`).
+
+To publish: open the page in Ghost Admin, check the preview on a phone-width window, and
+click **Publish**; or run `python3 tools/publish_ghost.py --no-build --publish`. In the page
+settings, untick **Show title and feature image** if the theme offers it, so the nameplate
+and headline inside the card come first.
+
+To create the page by hand instead: Ghost Admin, **Pages**, **New page**; add an **HTML**
+card and paste the whole of `ghost/embed.html`; in the settings panel set **Page URL** to
+`ma-06-general`, and under **Meta data** the meta title, meta description and canonical URL
+above.
 
 ## 3. Check the live page
 
@@ -85,23 +82,25 @@ in a browser. It must return JSON, not a 404.
 
 ## 4. After each daily build
 
+One command:
+
 ```bash
-export FEC_API_KEY=...
-python3 build_data.py --refresh
-python3 tools/spot_check.py
+export FEC_API_KEY=... GHOST_ADMIN_API_KEY=... GHOST_ADMIN_URL=https://www.marbleheadindependent.com
+python3 tools/publish_ghost.py
 ```
 
-Then re-upload, to the same folder, only:
+It runs `build_data.py --refresh` and `tools/spot_check.py` and stops if either fails;
+uploads `data/dashboard.json` and `data/build_log.json` (and `data/copy.json` only when its
+content changed since the last upload); records the new URLs in `ghost/manifest.json`;
+regenerates `ghost/embed.html`; updates the page's card, keeping it draft or published as it
+was; and scans every file it touched for the keys. `--no-build` skips the build (to push an
+edited headline), `--dry-run` makes no uploads and no page write.
 
-- `data/dashboard.json`
-- `data/build_log.json`
-- `data/copy.json`, only when the headline or dek changed.
+Commit `ghost/manifest.json`, `ghost/embed.html` and the two data files afterward so the
+repository matches the site.
 
-The page does not need to be edited or republished; browsers fetch the JSON with
-`cache: no-cache`, so a reload shows the new figures. Nothing else changes unless
-`index.html`, `app.js` or `styles.css` changed, in which case rerun
-`python3 tools/make_embed.py`, re-upload the changed file and paste the regenerated
-`ghost/embed.html` into the card again.
+If `index.html`, `app.js` or `styles.css` changed, run `python3 tools/publish_ghost.py --setup`
+again; it re-uploads everything and rewrites the card.
 
 ## Schedule
 

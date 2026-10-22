@@ -92,8 +92,11 @@
   function possessive(c) { return c.last_name + (c.last_name.endsWith("s") ? "’" : "’s"); }
 
   // ------------------------------------------------------------- loading
+  // Exact per-file URLs win over the folder base: Ghost renames an uploaded
+  // file that shares a name with an earlier upload, so the embed can pin each.
   async function fetchJson(name) {
-    const r = await fetch(BASE + name, { cache: "no-cache" });
+    const files = window.MA06_DATA_FILES || {};
+    const r = await fetch(files[name] || BASE + name, { cache: "no-cache" });
     if (!r.ok) throw new Error(name + " " + r.status);
     return r.json();
   }

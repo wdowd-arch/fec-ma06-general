@@ -3,16 +3,22 @@
      markup below, edit index.html and rerun the script. The page lives at
      https://www.marbleheadindependent.com/ma-06-general/. -->
 <script>
-  /* The one place to change if the uploaded files move. The folder must hold
-     styles.css, app.js, data/dashboard.json, data/build_log.json,
-     data/copy.json, data/us-states-paths.json and
-     assets/images/nameplate-horizontal.png. */
+  /* The one place that says where the uploaded files are. MA06_BASE is the
+     folder; MA06_FILES pins any file whose uploaded name differs (Ghost
+     renames a repeat upload, e.g. dashboard-2.json). tools/publish_ghost.py
+     rewrites this block after every upload. */
   var MA06_BASE = "https://www.marbleheadindependent.com/content/files/ma06-general/";
-  window.MA06_DATA_BASE = MA06_BASE + "data/";
+  var MA06_FILES = {};
+  window.MA06_DATA_BASE = MA06_BASE;
+  window.MA06_DATA_FILES = {
+    "dashboard.json": MA06_FILES["dashboard.json"] || MA06_BASE + "dashboard.json",
+    "copy.json": MA06_FILES["copy.json"] || MA06_BASE + "copy.json",
+    "us-states-paths.json": MA06_FILES["us-states-paths.json"] || MA06_BASE + "us-states-paths.json"
+  };
   (function () {
     var link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = MA06_BASE + "styles.css";
+    link.href = MA06_FILES.styles || MA06_BASE + "styles.css";
     document.head.appendChild(link);
   })();
 </script>
@@ -264,10 +270,10 @@
 </div>
 <script>
   (function () {
-    var imgs = document.querySelectorAll("#ma06-app [data-ma06-src]");
-    for (var i = 0; i < imgs.length; i++) imgs[i].src = MA06_BASE + imgs[i].getAttribute("data-ma06-src");
+    var img = document.querySelector("#ma06-app [data-ma06-src]");
+    if (img) img.src = MA06_FILES.nameplate || MA06_BASE + img.getAttribute("data-ma06-src");
     var script = document.createElement("script");
-    script.src = MA06_BASE + "app.js";
+    script.src = MA06_FILES.script || MA06_BASE + "app.js";
     document.body.appendChild(script);
   })();
 </script>
