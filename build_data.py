@@ -349,7 +349,7 @@ class FecClient:
         key = url + "?" + json.dumps(params or {}, sort_keys=True)
         return os.path.join(self.cache_dir, hashlib.sha256(key.encode()).hexdigest() + ".json")
 
-    def _read_cache(self, path):
+    def _read_cache(self, path, ttl=None):
         if not os.path.exists(path):
             return None
         try:
@@ -360,7 +360,7 @@ class FecClient:
         if self.offline:
             return entry
         fetched = dt.datetime.fromisoformat(entry.get("fetched_at", "1970-01-01T00:00:00+00:00"))
-        if dt.datetime.now(dt.timezone.utc) - fetched > self.ttl:
+        if dt.datetime.now(dt.timezone.utc) - fetched > (ttl or self.ttl):
             return None
         return entry
 
@@ -401,13 +401,13 @@ class FecClient:
                 self._window_started = None
 
     # -- requests -----------------------------------------------------------
-    def get(self, path, params=None, raw_text=False, base=None):
+    def get(self, path, params=None, raw_text=False, base=None, ttl=None):
         """GET an endpoint (or any URL when base is given) with caching."""
         params = dict(params or {})
         url = (base.rstrip("/") + path) if base else (API_BASE.rstrip("/") + path)
         cpath = self._cache_path(url, params)
-        if not self.refresh:
-            entry = self._read_cache(cpath)
+        if not self.refresh or ttl:
+            entry = self._read_cache(cpath, ttl=ttl)
             if entry is not None:
                 self.log["cache_hits"] += 1
                 self.log["endpoints"][path if not base else url] += 1
@@ -457,7 +457,7 @@ class FecClient:
             raise RuntimeError(f"HTTP {resp.status_code} on {path}: {resp.text[:300]}")
         raise RuntimeError(f"gave up on {path} after retries: {last_err}")
 
-    def paginate(self, path, params, mode="last_indexes"):
+    def paginate(self, path, params, mode="last_indexes", ttl=None):
         """Collects every result page. 'last_indexes' uses OpenFEC's keyset
         pagination (schedule_a/b/e); 'page' uses page numbers."""
         params = dict(params)
@@ -467,7 +467,7 @@ class FecClient:
             page = 1
             while True:
                 params["page"] = page
-                body = self.get(path, params)
+                body = self.get(path, params, ttl=ttl)
                 results.extend(body.get("results", []))
                 pages = (body.get("pagination") or {}).get("pages", 1) or 1
                 if page >= pages:
@@ -480,7 +480,7 @@ class FecClient:
             p = dict(params)
             if last:
                 p.update(last)
-            body = self.get(path, p)
+            body = self.get(path, p, ttl=ttl)
             batch = body.get("results", [])
             results.extend(batch)
             seen_pages += 1
@@ -503,7 +503,7 @@ def pull_candidate(client, cand, log):
     out = {}
     out["totals"] = client.get(f"/committee/{cid}/totals/", {"cycle": CYCLE}).get("results", [])
     out["reports"] = client.paginate(f"/committee/{cid}/reports/", {"cycle": CYCLE, "sort": "-coverage_end_date"}, mode="page")
-    out["efile_reports"] = client.paginate("/efile/reports/house_senate/", {"committee_id": cid, "sort": "-coverage_end_date"}, mode="page")
+    out["efile_reports"] = client.paginate("/efile/reports/house-senate/", {"committee_id": cid, "sort": "-receipt_date"}, mode="page")
     out["schedule_a"] = client.paginate("/schedules/schedule_a/", {
         "committee_id": cid, "two_year_transaction_period": CYCLE, "sort": "-contribution_receipt_date",
         "sort_null_only": "false",
@@ -529,22 +529,26 @@ def pull_candidate(client, cand, log):
     return out
 
 
-def pull_raw_after(client, cand, processed_through):
-    """Raw e-filed Schedule A/B rows newer than the processed coverage."""
+def pull_raw_after(client, cand, pulled):
+    """Raw e-filed Schedule A/B rows from filings the FEC has not yet
+    processed. Pulled from the timeline start; any row whose filing already
+    appears in the processed itemized data is dropped, so a report whose
+    summary is processed but whose line items still lag is not lost."""
     cid = cand["committee_id"]
-    if not processed_through:
-        return [], []
-    start = (dt.date.fromisoformat(processed_through) + dt.timedelta(days=1)).isoformat()
-    sched_a = client.paginate("/schedules/schedule_a/efile/", {"committee_id": cid, "min_date": start, "sort": "-contribution_receipt_date"}, mode="page")
-    sched_b = client.paginate("/schedules/schedule_b/efile/", {"committee_id": cid, "min_date": start, "sort": "-disbursement_date"}, mode="page")
+    processed_files_a = {r.get("file_number") for r in pulled["schedule_a"] if r.get("file_number")}
+    processed_files_b = {r.get("file_number") for r in pulled["schedule_b"] if r.get("file_number")}
+    sched_a = client.paginate("/schedules/schedule_a/efile/", {"committee_id": cid, "min_date": TIMELINE_START, "sort": "-contribution_receipt_date"}, mode="page")
+    sched_b = client.paginate("/schedules/schedule_b/efile/", {"committee_id": cid, "min_date": TIMELINE_START, "sort": "-disbursement_date"}, mode="page")
+    sched_a = [r for r in sched_a if r.get("file_number") not in processed_files_a]
+    sched_b = [r for r in sched_b if r.get("file_number") not in processed_files_b]
     return sched_a, sched_b
 
 
-def pull_primary_committee(client, pc):
+def pull_primary_committee(client, pc, ttl=None):
     return client.paginate("/schedules/schedule_a/", {
         "committee_id": pc["committee_id"], "two_year_transaction_period": CYCLE,
         "sort": "-contribution_receipt_date", "sort_null_only": "false",
-    })
+    }, ttl=ttl)
 
 
 def pull_contribution_limit(client, log):
@@ -654,8 +658,12 @@ def build_late_notices(client, cand, pulled, log):
             rec["sources"].add(src)
             rec["receipt_date"] = iso_date(first(f, "receipt_date", "filed_date", "load_timestamp")) or rec.get("receipt_date")
             rec["amendment_indicator"] = first(f, "amendment_indicator", default=rec.get("amendment_indicator"))
-            rec["previous_file_number"] = first(f, "previous_file_number", default=rec.get("previous_file_number"))
-            rec["most_recent"] = first(f, "most_recent", default=rec.get("most_recent", True))
+            prev = first(f, "previous_file_number", "amends_file", default=None)
+            if prev is not None and int(prev) != fn:
+                rec["previous_file_number"] = int(prev)
+            if f.get("most_recent") is False or f.get("amended_by"):
+                rec["most_recent"] = False
+            rec.setdefault("most_recent", True)
             rec["fec_url"] = first(f, "fec_url", default=rec.get("fec_url")) or DOCQUERY_FEC.format(file_number=fn)
             rec["pdf_url"] = first(f, "pdf_url", default=rec.get("pdf_url"))
             filings[fn] = rec
@@ -786,7 +794,7 @@ def pick_latest_report(reports, efile_reports, log, cand):
         "pdf_url": first(chosen, "pdf_url"),
         "source": "raw filing, not yet processed by the Federal Election Commission" if use_raw else "processed",
         "cash_on_hand": to_float(first(chosen, "cash_on_hand_end_period", default=None), None),
-        "debts": to_float(first(chosen, "debts_owed_by_committee", default=None), None),
+        "debts": to_float(first(chosen, "debts_owed_by_committee", "debts_owed_by_cmte", default=None), None),
         "receipts_cycle": to_float(first(chosen, "total_receipts_ytd", "total_receipts_cycle", default=None), None),
         "disbursements_cycle": to_float(first(chosen, "total_disbursements_ytd", "total_disbursements_cycle", default=None), None),
         "receipts_period": to_float(first(chosen, "total_receipts_period", "total_receipts", default=None), None),
@@ -1265,7 +1273,9 @@ def main():
     ap.add_argument("--cache-dir", default=os.environ.get("FEC_CACHE_DIR", CACHE_DIR))
     ap.add_argument("--out-dir", default=DATA_DIR)
     ap.add_argument("--rate-limit", type=int, default=int(os.environ.get("FEC_RATE_LIMIT", "60")))
-    ap.add_argument("--rate-window-seconds", type=int, default=int(os.environ.get("FEC_RATE_WINDOW_SECONDS", "60")))
+    ap.add_argument("--rate-window-seconds", type=int, default=int(os.environ.get("FEC_RATE_WINDOW_SECONDS", "3600")))
+    ap.add_argument("--primary-cache-ttl-hours", type=float, default=float(os.environ.get("FEC_PRIMARY_CACHE_TTL_HOURS", str(24 * 14))),
+                    help="cache life for the six primary committees, whose campaigns are over")
     args = ap.parse_args()
 
     started = time.time()
@@ -1289,14 +1299,12 @@ def main():
     for cand in CANDIDATES:
         print(f"Pulling {cand['name']} ({cand['committee_id']}) ...")
         pulled[cand["key"]] = pull_candidate(client, cand, log)
-        totals = pulled[cand["key"]]["totals"]
-        processed_through = iso_date(first(totals[0], "coverage_end_date", default=None)) if totals else None
-        raw_after[cand["key"]] = pull_raw_after(client, cand, processed_through)
+        raw_after[cand["key"]] = pull_raw_after(client, cand, pulled[cand["key"]])
 
     primary_pulled = {}
     for pc in PRIMARY_COMMITTEES:
         print(f"Pulling primary-season donors for {pc['name']} ({pc['committee_id']}) ...")
-        primary_pulled[pc["key"]] = pull_primary_committee(client, pc)
+        primary_pulled[pc["key"]] = pull_primary_committee(client, pc, ttl=dt.timedelta(hours=args.primary_cache_ttl_hours))
 
     print("Building ...")
     candidates = []
