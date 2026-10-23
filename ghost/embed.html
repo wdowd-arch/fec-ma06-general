@@ -7,16 +7,31 @@
      folder; MA06_FILES pins any file whose uploaded name differs (Ghost
      renames a repeat upload, e.g. dashboard-2.json). tools/publish_ghost.py
      rewrites this block after every upload. */
-  var MA06_BASE = "https://www.marbleheadindependent.com/content/files/ma06-general/";
-  var MA06_FILES = {};
+  var MA06_BASE = "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/files/2026/10/";
+  var MA06_FILES = {
+    "build_log.json": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/files/2026/10/build_log.json",
+    "copy.json": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/files/2026/10/copy.json",
+    "dashboard.json": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/files/2026/10/dashboard.json",
+    "jones-480.jpg": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/images/2026/10/jones-480.jpg",
+    "jones.jpg": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/images/2026/10/jones.jpg",
+    "koh-480.jpg": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/images/2026/10/koh-480.jpg",
+    "koh.jpg": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/images/2026/10/koh.jpg",
+    "nameplate-horizontal-800.png": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/images/2026/10/nameplate-horizontal-800.png",
+    "nameplate-horizontal.png": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/images/2026/10/nameplate-horizontal.png",
+    "script": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/files/2026/10/app.js",
+    "styles": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/files/2026/10/styles.css",
+    "us-states-paths.json": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/files/2026/10/us-states-paths.json"
+};
   window.MA06_DATA_BASE = MA06_BASE;
   window.MA06_ASSET_BASE = MA06_BASE;
+  window.MA06_ASSET_FILES = MA06_FILES;
   window.MA06_DATA_FILES = {
     "dashboard.json": MA06_FILES["dashboard.json"] || MA06_BASE + "dashboard.json",
     "copy.json": MA06_FILES["copy.json"] || MA06_BASE + "copy.json",
     "us-states-paths.json": MA06_FILES["us-states-paths.json"] || MA06_BASE + "us-states-paths.json"
   };
   (function () {
+    if (MA06_FILES.styles === "inline") return;
     var link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = MA06_FILES.styles || MA06_BASE + "styles.css";
@@ -29,7 +44,7 @@
 <header class="masthead">
   <div class="wrap">
     <a class="masthead-logo" href="https://www.marbleheadindependent.com/" aria-label="The Marblehead Independent home page">
-      <img src="" data-ma06-src="assets/images/nameplate-horizontal.png" srcset="assets/images/nameplate-horizontal-800.png 800w, assets/images/nameplate-horizontal.png 1600w" sizes="(max-width: 768px) calc(100vw - 32px), 380px" alt="The Marblehead Independent" width="1600" height="400">
+      <img src="" data-ma06-src="assets/images/nameplate-horizontal.png" data-ma06-srcset="assets/images/nameplate-horizontal-800.png 800w, assets/images/nameplate-horizontal.png 1600w" sizes="(max-width: 768px) calc(100vw - 32px), 380px" alt="The Marblehead Independent" width="1600" height="400">
     </a>
     <p class="kicker">Campaign finance: general election</p>
     <h1 id="headline">Loading…</h1>
@@ -44,8 +59,8 @@
     <p class="build-note hidden" id="build-note"></p>
     <figure class="masthead-photo masthead-photo-pair">
       <div class="pair">
-        <img src="" data-ma06-src="assets/images/koh.jpg" srcset="assets/images/koh-480.jpg 480w, assets/images/koh.jpg 1000w" sizes="(max-width: 768px) calc(50vw - 20px), 425px" alt="Dan Koh, the Democratic nominee, in a checked shirt with arms crossed on a storefront sidewalk" width="1000" height="1000">
-        <img src="" data-ma06-src="assets/images/jones.jpg" srcset="assets/images/jones-480.jpg 480w, assets/images/jones.jpg 1000w" sizes="(max-width: 768px) calc(50vw - 20px), 425px" alt="Micah Jones, the Republican nominee, in a navy quarter-zip pullover" width="1000" height="1000">
+        <img src="" data-ma06-src="assets/images/koh.jpg" data-ma06-srcset="assets/images/koh-480.jpg 480w, assets/images/koh.jpg 1000w" sizes="(max-width: 768px) calc(50vw - 20px), 425px" alt="Dan Koh, the Democratic nominee, in a checked shirt with arms crossed on a storefront sidewalk" width="1000" height="1000">
+        <img src="" data-ma06-src="assets/images/jones.jpg" data-ma06-srcset="assets/images/jones-480.jpg 480w, assets/images/jones.jpg 1000w" sizes="(max-width: 768px) calc(50vw - 20px), 425px" alt="Micah Jones, the Republican nominee, in a navy quarter-zip pullover" width="1000" height="1000">
       </div>
       <figcaption>Dan Koh, left, the Democratic nominee, and Micah Jones, the Republican nominee, for Massachusetts’ 6th Congressional District.</figcaption>
     </figure>
@@ -299,12 +314,19 @@
 </div>
 <script>
   (function () {
+    function resolve(rel) {
+      var name = rel.split("/").pop();
+      return MA06_FILES[name] || (name === "nameplate-horizontal.png" && MA06_FILES.nameplate) || MA06_BASE + rel;
+    }
     document.querySelectorAll("#ma06-app [data-ma06-src]").forEach(function (img) {
-      var rel = img.getAttribute("data-ma06-src"), name = rel.split("/").pop();
-      img.src = MA06_FILES[name] || (name === "nameplate-horizontal.png" && MA06_FILES.nameplate) || MA06_BASE + rel;
+      img.src = resolve(img.getAttribute("data-ma06-src"));
+      var set = img.getAttribute("data-ma06-srcset");
+      if (set) img.srcset = set.split(",").map(function (c) { var p = c.trim().split(/\s+/); return resolve(p[0]) + (p[1] ? " " + p[1] : ""); }).join(", ");
     });
-    var script = document.createElement("script");
-    script.src = MA06_FILES.script || MA06_BASE + "app.js";
-    document.body.appendChild(script);
+    if (MA06_FILES.script !== "inline") {
+      var script = document.createElement("script");
+      script.src = MA06_FILES.script || MA06_BASE + "app.js";
+      document.body.appendChild(script);
+    }
   })();
 </script>

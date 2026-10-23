@@ -1,0 +1,65 @@
+{
+ "base": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/files/2026/10/",
+ "files": {
+  "styles": {
+   "url": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/files/2026/10/styles.css",
+   "sha256": "facd2ec9c613b7fb3f8ff7e05c2417850a8d235161c5de88eebc75694c9dc997",
+   "uploaded_at": "2026-10-23T20:33:58Z"
+  },
+  "script": {
+   "url": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/files/2026/10/app.js",
+   "sha256": "8ba87fd14a019e3f30e9a76ede8aeee4725d789ed7e676e4bc9a6dfc3fb9fd4d",
+   "uploaded_at": "2026-10-23T20:33:59Z"
+  },
+  "dashboard.json": {
+   "url": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/files/2026/10/dashboard.json",
+   "sha256": "dffd8d427427073ccf61513716ceb13e50c8e5d9d17d109514ab6399d9b8911b",
+   "uploaded_at": "2026-10-23T20:33:59Z"
+  },
+  "build_log.json": {
+   "url": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/files/2026/10/build_log.json",
+   "sha256": "bbd7e5621b377687498a707b7736962a51fc451387164bbd45da3527c3462501",
+   "uploaded_at": "2026-10-23T20:34:00Z"
+  },
+  "copy.json": {
+   "url": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/files/2026/10/copy.json",
+   "sha256": "eb74c6e3e4abb61969f24ccc985aac5c2e9d1f0ad2c5e5b639bee0a070fa1151",
+   "uploaded_at": "2026-10-23T20:34:00Z"
+  },
+  "us-states-paths.json": {
+   "url": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/files/2026/10/us-states-paths.json",
+   "sha256": "e19b1525343c4042947f0d95870b74df9aa4d44b1ce4643e7267c5efd9fa362e",
+   "uploaded_at": "2026-10-23T20:34:00Z"
+  },
+  "nameplate-horizontal.png": {
+   "url": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/images/2026/10/nameplate-horizontal.png",
+   "sha256": "5652f361d0d2ae85da76fd2bd887ab5c40e52ef49c98256cb3af305ad9810819",
+   "uploaded_at": "2026-10-23T20:34:02Z"
+  },
+  "nameplate-horizontal-800.png": {
+   "url": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/images/2026/10/nameplate-horizontal-800.png",
+   "sha256": "13114a2e6f40a2022a49b956fb46e78bc2995443fbfbef92b6984fd3d8b00e2c",
+   "uploaded_at": "2026-10-23T20:34:03Z"
+  },
+  "koh.jpg": {
+   "url": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/images/2026/10/koh.jpg",
+   "sha256": "c021b4d97171def9785a20bddfc2ab99d5f826620ebb5036420ff595002f5c16",
+   "uploaded_at": "2026-10-23T20:34:04Z"
+  },
+  "koh-480.jpg": {
+   "url": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/images/2026/10/koh-480.jpg",
+   "sha256": "6d6cbf08c06b1e266035822327f2f9268b91b698a62ed68c0811e04a182097e6",
+   "uploaded_at": "2026-10-23T20:34:05Z"
+  },
+  "jones.jpg": {
+   "url": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/images/2026/10/jones.jpg",
+   "sha256": "d65617c00247dcee77b8c09229ea46f0886feb0ced61771d7ffce9cca1d443dc",
+   "uploaded_at": "2026-10-23T20:34:06Z"
+  },
+  "jones-480.jpg": {
+   "url": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/images/2026/10/jones-480.jpg",
+   "sha256": "d1a02445d9cac078a9fbd3ba227a906bb953ca834a1b77aba810ac36d8f03239",
+   "uploaded_at": "2026-10-23T20:34:07Z"
+  }
+ }
+}

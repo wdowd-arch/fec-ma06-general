@@ -1,5 +1,5 @@
 {
- "started_at": "2026-10-22T23:39:30.939040+00:00",
+ "started_at": "2026-10-23T20:30:27.019274+00:00",
  "mode": "live",
  "api_base": "https://api.open.fec.gov/v1",
  "cycle": 2026,
@@ -27,8 +27,8 @@
   "https://www.fec.gov/help-candidates-and-committees/candidate-taking-receipts/contribution-limits": 1
  },
  "warnings": [],
- "requests": 197,
- "cache_hits": 0,
+ "requests": 132,
+ "cache_hits": 65,
  "rate_limit_pauses": 0,
  "backoffs": 0,
  "amendments_excluded": {
@@ -39,8 +39,8 @@
   "jones_f6": 1
  },
  "ie_duplicate_rows_dropped": 72,
- "finished_at": "2026-10-22T23:45:10.310393+00:00",
- "run_seconds": 339.4,
+ "finished_at": "2026-10-23T20:33:54.093420+00:00",
+ "run_seconds": 207.1,
  "record_counts": {
   "koh": {
    "schedule_a_rows": 6859,
@@ -60,9 +60,9 @@
    "raw_schedule_a_rows": 214,
    "raw_schedule_b_rows": 202
   },
-  "independent_expenditures": 26,
+  "independent_expenditures": 28,
   "notices_48h": 6,
-  "crossover_rows": 38,
+  "crossover_rows": 39,
   "primary_schedule_a_rows": {
    "andres_beck": 627,
    "beccia": 920,
@@ -74,16 +74,16 @@
  },
  "reconciliation": {
   "koh": {
-   "reported_total_receipts": 5251469.39,
-   "calculated_category_total": 5251469.39,
+   "reported_total_receipts": 5383420.65,
+   "calculated_category_total": 5383420.65,
    "difference": 0.0,
    "status": "reconciled",
    "tolerance": 0.01,
    "basis": "processed committee totals"
   },
   "jones": {
-   "reported_total_receipts": 586090.76,
-   "calculated_category_total": 586090.76,
+   "reported_total_receipts": 619903.76,
+   "calculated_category_total": 619903.76,
    "difference": 0.0,
    "status": "reconciled",
    "tolerance": 0.01,
@@ -93,7 +93,7 @@
  "contribution_limit": {
   "individual_per_election": 3500,
   "source_url": "https://www.fec.gov/help-candidates-and-committees/candidate-taking-receipts/contribution-limits/",
-  "retrieved_at": "2026-10-22T23:39:31.390141+00:00",
+  "retrieved_at": "2026-10-23T20:30:27.505272+00:00",
   "status": "retrieved",
   "cycle_label": "2025-26"
  },
@@ -102,10 +102,10 @@
    "compare_at": "https://www.fec.gov/data/candidate/H8MA03072/?cycle=2026&election_full=true",
    "figures": {
     "total_receipts": 5383420.65,
-    "total_disbursements": 4302794.83,
+    "total_disbursements": 4302769.83,
     "cash_on_hand": 1081990.54,
     "debts": 234000.0,
-    "individual_itemized": 4531906.27
+    "individual_itemized": 4603737.27
    },
    "note": "Compare each figure to the FEC.gov candidate page for the 2026 cycle (election_full=true) and record the result in README.md before publishing."
   },
@@ -116,7 +116,7 @@
     "total_disbursements": 450121.61,
     "cash_on_hand": 169782.15,
     "debts": 0.0,
-    "individual_itemized": 530826.67
+    "individual_itemized": 561296.67
    },
    "note": "Compare each figure to the FEC.gov candidate page for the 2026 cycle (election_full=true) and record the result in README.md before publishing."
   }
