@@ -100,11 +100,17 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
   text-align: left; position: sticky; top: 0; z-index: 30; background: rgba(253,249,244,.96);
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); border-bottom: 1px solid var(--hairline);
 }
-#ma06-app .sectionnav .wrap { display: flex; align-items: center; gap: .3rem; overflow-x: auto; padding-block: .55rem; scrollbar-width: thin; }
-#ma06-app .sectionnav-links { display: flex; gap: .3rem; flex: 1; }
-@media (min-width: 821px) { #ma06-app .sectionnav .wrap { justify-content: center; } }
+#ma06-app .sectionnav .wrap { display: flex; align-items: center; gap: .3rem; padding-block: .55rem; }
+#ma06-app .sectionnav-links { display: flex; gap: .3rem; }
+/* Wide screens: the row centers and wraps onto a second line when the
+   window is narrower than the full set of pills, so no pill is ever
+   clipped by centered overflow. */
+@media (min-width: 1024px) {
+  #ma06-app .sectionnav .wrap { justify-content: center; flex-wrap: wrap; row-gap: .2rem; }
+  #ma06-app .sectionnav-links { flex-wrap: wrap; justify-content: center; }
+}
 #ma06-app .sectionnav-jump { display: none; }
-@media (max-width: 820px) {
+@media (max-width: 1023px) {
   #ma06-app .sectionnav-links { display: none; }
   #ma06-app .sectionnav-jump { display: block; flex: 1; }
   #ma06-app .sectionnav-jump select {
@@ -113,8 +119,8 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
   }
 }
 #ma06-app .sectionnav a {
-  font-size: .74rem; font-weight: 600; color: var(--harbor-black); text-transform: uppercase; letter-spacing: .04em;
-  white-space: nowrap; padding: .32rem .68rem; border-radius: 999px; border: 1px solid transparent; text-decoration: none;
+  font-size: .72rem; font-weight: 600; color: var(--harbor-black); text-transform: uppercase; letter-spacing: .03em;
+  white-space: nowrap; padding: .32rem .55rem; border-radius: 999px; border: 1px solid transparent; text-decoration: none;
 }
 #ma06-app .sectionnav a:hover { border-color: var(--hairline); text-decoration: none; }
 #ma06-app .sectionnav a.active { color: var(--independent-red); border-color: var(--independent-red); }
@@ -298,7 +304,8 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
 #ma06-app .notice-card .head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .4rem .8rem; align-items: baseline; }
 #ma06-app .notice-card .head strong { font-family: var(--serif); font-size: 1rem; }
 #ma06-app .notice-card .meta { font-size: .76rem; color: var(--ink-soft); }
-#ma06-app .notice-card table { min-width: 0; margin-top: .5rem; font-size: .78rem; }
+#ma06-app .notice-card table { min-width: 0; width: 100%; margin-top: .5rem; font-size: .78rem; table-layout: auto; }
+#ma06-app .notice-card tbody td { white-space: normal; }
 #ma06-app .notice-card thead th { position: static; background: transparent; color: var(--ink-soft); border-bottom: 1px solid var(--hairline); }
 
 #ma06-app .two-col { display: grid; grid-template-columns: 1.1fr .9fr; gap: 1.6rem; }
