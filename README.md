@@ -142,8 +142,17 @@ or "12 a.m.," courtesy titles, banned phrases, an acronym used before or without
 introduction, and any word shared by the headline and dek. It prints possible Oxford commas
 and unexplained all-caps tokens for review.
 
-Test at phone width: the section nav becomes a jump menu below 821 px and every data table
-reflows into labeled cards below 768 px (headers stay in the DOM for assistive technology).
+The page has two presentations on one URL, chosen by viewport width (CSS media queries and
+`matchMedia`, never user-agent sniffing): a desktop version at 769 px and wider and a phone
+version at 768 px and narrower. Both read the same data in memory; crossing 768 px by resize or
+rotation re-renders the components whose markup differs (tables, candidate snapshots, map
+readout, timeline, methodology) without a reload or refetch. On phones the section nav is a
+jump menu, tables become labeled cards (the by-group table shows priority columns with a
+button for the rest; the district towns table scrolls sideways with a sticky town column),
+the candidate snapshots become one three-column comparison, the map readout sits below the
+map with a Northeast inset and a button per small state, and the methodology subsections
+collapse. Headers stay in the DOM for assistive technology. `docs/responsive-build.md` has the
+file map and the full specification record.
 
 ### Spot-check record, build of Oct. 22, 2026, 7:45 p.m.
 

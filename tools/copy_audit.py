@@ -50,9 +50,10 @@ def collect(url):
         page = browser.new_page(viewport={"width": 1280, "height": 900})
         page.goto(url, wait_until="networkidle")
         page.wait_for_selector("#overview-metrics .metric-grid, #overview-metrics .empty-state", timeout=20000)
-        # open the methodology and scroll so lazy content renders
-        page.evaluate("document.getElementById('methodology-details').open = true")
+        # open any collapsible items (the phone version's methodology) and scroll so lazy content renders
+        page.evaluate("document.querySelectorAll('#ma06-app details').forEach((d) => { d.open = true; })")
         page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        page.wait_for_timeout(1500)
         page.wait_for_timeout(800)
         data = page.evaluate("""() => {
           const out = {segments: [], pct_blocks: [], headline: document.getElementById('headline').textContent, dek: document.getElementById('dek').textContent};
