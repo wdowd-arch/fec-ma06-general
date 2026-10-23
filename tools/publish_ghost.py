@@ -53,8 +53,14 @@ META_DESCRIPTION = ("Dan Koh and Micah Jones head to head on receipts, spending,
 ALL_FILES = {
     "styles": "styles.css", "script": "app.js", "dashboard.json": "data/dashboard.json",
     "build_log.json": "data/build_log.json", "copy.json": "data/copy.json",
-    "us-states-paths.json": "data/us-states-paths.json", "nameplate": "assets/images/nameplate-horizontal.png",
+    "us-states-paths.json": "data/us-states-paths.json",
+    # Images are keyed by file name so the embed can resolve src and srcset entries.
+    "nameplate-horizontal.png": "assets/images/nameplate-horizontal.png",
+    "nameplate-horizontal-800.png": "assets/images/nameplate-horizontal-800.png",
+    "koh.jpg": "assets/images/koh.jpg", "koh-480.jpg": "assets/images/koh-480.jpg",
+    "jones.jpg": "assets/images/jones.jpg", "jones-480.jpg": "assets/images/jones-480.jpg",
 }
+INLINE_IF_REFUSED = {"styles", "script"}
 DAILY_FILES = ["dashboard.json", "build_log.json"]
 
 
@@ -67,6 +73,17 @@ class Ghost:
         self.site = site.rstrip("/")
         self.kid, self.secret = key.split(":", 1)
         self.s = requests.Session()
+        self.admin = self.site
+        # Ghost(Pro) answers the Admin API on the site's ghost.io host and
+        # redirects there from the custom domain; a redirect across hosts
+        # drops the Authorization header, so resolve the host once.
+        try:
+            r = self.s.get(f"{self.site}/ghost/api/admin/site/", allow_redirects=False, timeout=30)
+            if r.is_redirect and r.headers.get("Location", "").startswith("http"):
+                loc = r.headers["Location"]
+                self.admin = loc.split("/ghost/")[0]
+        except requests.RequestException:
+            pass
 
     def token(self):
         now = int(time.time())
@@ -79,7 +96,7 @@ class Ghost:
         return {"Authorization": "Ghost " + self.token(), "Accept-Version": "v5.0"}
 
     def api(self, method, path, **kw):
-        r = self.s.request(method, f"{self.site}/ghost/api/admin{path}", headers=self.headers(), timeout=120, **kw)
+        r = self.s.request(method, f"{self.admin}/ghost/api/admin{path}", headers=self.headers(), timeout=120, **kw)
         if not r.ok:
             raise RuntimeError(f"Ghost {method} {path}: HTTP {r.status_code} {r.text[:400]}")
         return r.json() if r.text else {}
@@ -185,13 +202,20 @@ def main():
         todo.append("copy.json")
     for key in todo:
         local = os.path.join(ROOT, ALL_FILES[key])
-        url = ghost.upload(local, dry_run=args.dry_run)
+        try:
+            url = ghost.upload(local, dry_run=args.dry_run)
+        except RuntimeError as exc:
+            if key in INLINE_IF_REFUSED:
+                print(f"Ghost refused {ALL_FILES[key]} ({str(exc)[:80]}); it will be carried inside the card instead")
+                manifest["files"][key] = {"inline": True, "sha256": sha(local)}
+                continue
+            raise
         manifest["files"][key] = {"url": url, "sha256": sha(local), "uploaded_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
         print(f"uploaded {ALL_FILES[key]} -> {url}")
     missing = [k for k in ALL_FILES if k not in manifest["files"]]
     if missing:
         sys.exit(f"manifest has no URL for {', '.join(missing)}; run with --setup once")
-    if manifest["files"].get("dashboard.json"):
+    if manifest["files"].get("dashboard.json", {}).get("url"):
         manifest["base"] = manifest["files"]["dashboard.json"]["url"].rsplit("/", 1)[0] + "/"
     if not args.dry_run:
         os.makedirs(os.path.dirname(MANIFEST), exist_ok=True)

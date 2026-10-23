@@ -271,6 +271,12 @@
   // embed sets window.MA06_ASSET_BASE so the same paths resolve.
   const ASSET_BASE = window.MA06_ASSET_BASE ? String(window.MA06_ASSET_BASE).replace(/\/?$/, "/") : "";
   const PHOTOS = { koh: "assets/images/koh.jpg", jones: "assets/images/jones.jpg" };
+  // Exact uploaded URLs (by file name) win over the folder base: Ghost
+  // stores images flat and renames repeats, so the embed pins each one.
+  function assetUrl(rel) {
+    const files = window.MA06_ASSET_FILES || {};
+    return files[rel.split("/").pop()] || ASSET_BASE + rel;
+  }
 
   // The primary edition's candidate snapshot cards: photo, name, bar, the
   // same seven figures for each nominee.
@@ -301,7 +307,7 @@
     const max = Math.max(...cs.map((c) => (isNum(c.totals.receipts) ? c.totals.receipts : 0)), 0);
     const head = el("tr", {}, [el("th", { scope: "col" }, [el("span", { class: "sr-only" }, ["Measure"])])]);
     cs.forEach((c) => head.appendChild(el("th", { scope: "col", class: c.key }, [
-      PHOTOS[c.key] ? el("img", { class: "candidate-photo", src: ASSET_BASE + PHOTOS[c.key], alt: "", width: "56", height: "56", loading: "lazy" }) : null,
+      PHOTOS[c.key] ? el("img", { class: "candidate-photo", src: assetUrl(PHOTOS[c.key]), alt: "", width: "56", height: "56", loading: "lazy" }) : null,
       el("span", { class: "name" }, [c.name]), el("span", { class: "party" }, ["(" + c.party_abbr + ")"]),
     ])));
     const body = el("tbody");
@@ -342,7 +348,7 @@
       rows.forEach(([k, v]) => { dl.appendChild(el("dt", {}, [k])); dl.appendChild(el("dd", {}, [v])); });
       const share = max > 0 && isNum(t.receipts) ? (t.receipts / max) * 100 : 0;
       const card = el("div", { class: "candidate-card" }, [
-        PHOTOS[c.key] ? el("img", { class: "candidate-photo", src: ASSET_BASE + PHOTOS[c.key], alt: c.name, width: "72", height: "72", loading: "lazy" }) : null,
+        PHOTOS[c.key] ? el("img", { class: "candidate-photo", src: assetUrl(PHOTOS[c.key]), alt: c.name, width: "72", height: "72", loading: "lazy" }) : null,
         el("h3", {}, [c.name, el("span", { class: "party" }, ["(" + c.party_abbr + ")"])]),
         el("div", { class: "mini-bar " + c.key, role: "img", "aria-label": c.name + " total receipts " + money(t.receipts) + (max > 0 ? ", " + pct(share / 100) + " of the larger figure" : "") }, [el("span", { style: "width:" + share + "%" })]),
         dl,
