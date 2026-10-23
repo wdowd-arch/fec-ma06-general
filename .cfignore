@@ -1,0 +1,9 @@
+# Not served by Cloudflare Pages
+tools/
+ghost/
+logs/
+cache/
+build_data.py
+requirements.txt
+README.md
+.gitignore
