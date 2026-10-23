@@ -73,6 +73,8 @@ body:not(.ma06-page) #ma06-app {
   margin-left: calc(50% - var(--ma06-vw, 100vw) / 2); margin-right: calc(50% - var(--ma06-vw, 100vw) / 2);
   flex: 0 0 auto; align-self: center;
 }
+/* The theme's own masthead already shows the nameplate, so the card's copy is hidden there. */
+body:not(.ma06-page) #ma06-app .masthead-logo { display: none; }
 #ma06-app *, #ma06-app *::before, #ma06-app *::after { box-sizing: border-box; }
 #ma06-app img, #ma06-app svg { max-width: 100%; }
 
