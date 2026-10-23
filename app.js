@@ -328,12 +328,6 @@
     });
     const table = el("table", { class: "snapshot-table" }, [el("thead", {}, [head]), body]);
     host.appendChild(table);
-    const rawOnes = cs.filter((c) => isRaw(c.totals.source));
-    if (rawOnes.length) {
-      const note = el("p", { class: "snapshot-note" }, [(rawOnes.length === cs.length ? "Both nominees’ receipts" : possessive(rawOnes[0]) + " receipts") + ", disbursements, cash and debt come from a "]);
-      note.appendChild(rawPill()); note.appendChild(document.createTextNode(" the FEC has posted but not yet processed."));
-      host.appendChild(note);
-    }
   }
   function renderCandidateCards(cs) {
     const host = byId("overview-cards");
@@ -353,7 +347,6 @@
         el("div", { class: "mini-bar " + c.key, role: "img", "aria-label": c.name + " total receipts " + money(t.receipts) + (max > 0 ? ", " + pct(share / 100) + " of the larger figure" : "") }, [el("span", { style: "width:" + share + "%" })]),
         dl,
       ]);
-      if (isRaw(t.source)) card.appendChild(rawNote("card-note"));
       host.appendChild(card);
     });
   }
@@ -469,22 +462,19 @@
     const d = state.data, lim = d.limits || {};
     const note = byId("limit-note");
     if (lim.status === "retrieved" && isNum(lim.individual_per_election)) {
-      clear(note).append("The per-election limit for an individual giving to a House candidate in " + lim.cycle_label + " is " + money(lim.individual_per_election) + ", read from ", link(lim.source_url, "FEC.gov"), " on " + fmtDate(lim.retrieved_at) + ".");
+      clear(note).append("Per-election limit: " + money(lim.individual_per_election) + " (", link(lim.source_url, "FEC.gov"), ", " + fmtDate(lim.retrieved_at) + ").");
     } else {
-      clear(note).append("The per-election contribution limit could not be read from ", link(lim.source_url || "https://www.fec.gov/", "FEC.gov"), " on this build, so this page does not count donors at the limit.");
+      clear(note).append("Per-election limit not read from ", link(lim.source_url || "https://www.fec.gov/", "FEC.gov"), " on this build.");
     }
     const list = clear(byId("elections-list"));
     cands().forEach((c) => {
       const s = c.election_split;
       const base = s.itemized_individual_total;
-      const kids = [el("p", { class: "panel-note", style: "margin-inline:0;max-width:none;text-align:left" }, [money(base) + " in itemized individual gifts across " + numWord(Object.values(s.contributors || {}).reduce((a, b) => a + b, 0)) + " donor records."])];
+      const kids = [];
       kids.push(...stackWithLegend(SPLIT.map((x) => ({ label: x.label, value: s[x.key], color: x.color })), base, "in itemized individual gifts", "split-detail-" + c.key));
       if (isNum(s.at_limit_general)) {
         kids.push(el("p", { class: "panel-note", style: "margin:.8rem 0 0;max-width:none;text-align:left" }, [
-          numSentenceStart(s.at_limit_general) + " donor " + plural(s.at_limit_general, "record", "records") + " (name plus ZIP code) " + plural(s.at_limit_general, "has", "have") + " given " + c.last_name + " the full " + money(lim.individual_per_election) + " for the general election; " + numWord(s.at_limit_primary) + " did so for the primary."]));
-      }
-      if (s.raw_total > 0) {
-        kids.push(el("p", { class: "panel-note", style: "margin:.5rem 0 0;max-width:none;text-align:left" }, ["The figures include " + money(s.raw_total) + " from raw filings not yet processed by the FEC: " + money(s.raw_general) + " designated for the general election, " + money(s.raw_primary) + " for the primary and " + money(s.raw_undesignated) + " with no designation."]));
+          numSentenceStart(s.at_limit_general) + " donor " + plural(s.at_limit_general, "record", "records") + " at the " + money(lim.individual_per_election) + " maximum for the general election; " + numWord(s.at_limit_primary) + " for the primary."]));
       }
       list.appendChild(pairBlock(c, kids));
     });
@@ -501,7 +491,6 @@
       summary.appendChild(pairBlock(c, [
         el("div", { class: "hbar-row" }, [el("span", { class: "lbl" }, ["Supporting " + c.last_name]), el("div", { class: "hbar-track", role: "img", "aria-label": "Supporting " + c.last_name + " " + money(side.support) }, [el("div", { class: "hbar-fill", style: "width:" + (os.total ? (side.support / os.total) * 100 : 0) + "%;background:var(--positive)" })]), el("span", { class: "amt" }, [money(side.support)])]),
         el("div", { class: "hbar-row" }, [el("span", { class: "lbl" }, ["Opposing " + c.last_name]), el("div", { class: "hbar-track", role: "img", "aria-label": "Opposing " + c.last_name + " " + money(side.oppose) }, [el("div", { class: "hbar-fill", style: "width:" + (os.total ? (side.oppose / os.total) * 100 : 0) + "%;background:var(--independent-red)" })]), el("span", { class: "amt" }, [money(side.oppose)])]),
-        el("p", { class: "panel-note", style: "margin:.4rem 0 0;max-width:none;text-align:left" }, [numSentenceStart(side.count) + " " + plural(side.count, "expenditure") + " on file naming " + c.last_name + " for the 2026 cycle. Of the dollars, " + money(side.support_general) + " supporting and " + money(side.oppose_general) + " opposing were designated for the general election; the rest were designated for the primary or carried no designation."]),
       ]));
     });
 
@@ -525,18 +514,18 @@
     { key: "date", label: "Date", render: (r) => { const s = el("span", {}, [fmtDate(r.date)]); if (isRaw(r.source)) { s.appendChild(document.createTextNode(" ")); s.appendChild(rawPill()); } return s; } },
     { key: "group", label: "Group", render: (r) => r.group_fec_url ? link(r.group_fec_url, r.group) : r.group, wrap: true },
     { key: "side", label: "Position", render: (r) => pill(sideLabel(r), r.side), sortValue: (r) => sideLabel(r) },
-    { key: "election", label: "Election", render: (r) => r.election === "general" ? "General" : r.election === "primary" ? "Primary" : r.election === "not_stated" ? "Not stated on the raw filing" : "Not designated" },
+    { key: "election", label: "Election", wrap: true, render: (r) => r.election === "general" ? "General" : r.election === "primary" ? "Primary" : r.election === "not_stated" ? "Not stated on the raw filing" : "Not designated" },
     { key: "amount", label: "Amount", num: true, cents: true },
     { key: "purpose", label: "Purpose", wrap: true, render: (r) => r.purpose || "not described" },
     { key: "payee", label: "Payee", wrap: true, render: (r) => r.payee || "not reported" },
-    { key: "form", label: "Form", render: (r) => (r.form || "—") + (r.is_notice ? " (24-hour report)" : "") },
+    { key: "form", label: "Form", wrap: true, render: (r) => (r.form || "—") + (r.is_notice ? " (24-hour report)" : "") },
     { key: "filing_page", label: "Filing", sortable: false, render: (r) => link(r.filing_page || r.pdf_url, "View on FEC.gov") },
   ];
   function renderOutsideRows() {
     const os = state.data.outside_spending;
     const ck = byId("outside-candidate").value, side = byId("outside-side").value;
     const rows = os.rows.filter((r) => (ck === "__all__" || r.candidate_key === ck) && (side === "__all__" || r.side === side));
-    byId("outside-count").textContent = fmtInt.format(rows.length) + " of " + fmtInt.format(os.rows.length) + " independent " + plural(os.rows.length, "expenditure") + " shown, totaling " + money(rows.reduce((a, r) => a + r.amount, 0)) + ".";
+    byId("outside-count").textContent = fmtInt.format(rows.length) + " of " + fmtInt.format(os.rows.length) + " shown, " + money(rows.reduce((a, r) => a + r.amount, 0)) + ".";
     renderTable(byId("outside-table"), IE_COLS, rows, { defaultSort: "date", empty: "No independent expenditures match this selection. Groups must report spending of $1,000 or more within 24 hours in the final 20 days before the election, so check back." });
   }
 
@@ -568,22 +557,21 @@
       (!q || [r.contributor, r.city, r.state, r.employer, r.occupation].filter(Boolean).join(" ").toLowerCase().includes(q)));
     const unread = notices.filter((n) => !n.contributions.length);
     const early = notices.filter((n) => n.before_window);
-    let text = fmtInt.format(rows.length) + " of " + fmtInt.format(all.length) + " " + plural(all.length, "contribution") + " shown, totaling " + money(rows.reduce((a, r) => a + (isNum(r.amount) ? r.amount : 0), 0)) + ", from " + numWord(notices.length) + " " + plural(notices.length, "notice") + " filed since " + fmtDay(lm.window_start) + ".";
-    if (early.length) text += " " + numSentenceStart(early.length) + " " + plural(early.length, "notice lists", "notices list") + " only contributions dated before " + fmtDate(lm.window_start) + "; the committee filed late or for the primary’s own 48-hour window.";
-    if (unread.length) text += " The line items of " + numWord(unread.length) + " " + plural(unread.length, "notice") + " could not be read; open the filing for the contributions.";
+    let text = fmtInt.format(rows.length) + " of " + fmtInt.format(all.length) + " shown, " + money(rows.reduce((a, r) => a + (isNum(r.amount) ? r.amount : 0), 0)) + ", from " + numWord(notices.length) + " " + plural(notices.length, "notice") + ".";
+    if (early.length) text += " " + numSentenceStart(early.length) + " " + plural(early.length, "notice predates", "notices predate") + " " + fmtDay(lm.window_start) + ".";
+    if (unread.length) text += " " + numSentenceStart(unread.length) + " " + plural(unread.length, "notice") + " unreadable; see the filing.";
     byId("late-48-count").textContent = text;
     renderTable(byId("late-48"), LATE48_COLS, rows, { defaultSort: "date", empty: notices.length ? "No contributions match the filter." : "No 48-hour notices have been filed by either committee since " + fmtDate(lm.window_start) + "." });
   }
 
   function renderLate() {
     const d = state.data, lm = d.late_money;
-    clear(byId("late-note")).append(
-      "A campaign must report any contribution of $1,000 or more received from " + fmtDay(lm.window_start) + " through " + fmtDay(lm.window_end) + " to the FEC within 48 hours, and a group must report an independent expenditure of $1,000 or more in that period within 24 hours. The amounts here are what the filers reported; they are not yet in the processed totals above. Filings last checked " + lm.last_checked_display + ".");
+    clear(byId("late-note")).append("48-hour notices and 24-hour reports filed since " + fmtDay(lm.window_start) + ". Last checked " + lm.last_checked_display + ".");
     const summary = clear(byId("late-summary"));
     cands().forEach((c) => {
       const l = c.late_money;
       summary.appendChild(pairBlock(c, [el("p", { class: "panel-note", style: "margin:0;max-width:none;text-align:left" }, [
-        numSentenceStart(l.notices_48h_count) + " 48-hour " + plural(l.notices_48h_count, "notice") + " on file since " + fmtDay(lm.window_start) + ", reporting " + numWord(l.contributions_48h) + " " + plural(l.contributions_48h, "contribution") + " totaling " + money(l.notices_48h_total) + "."])]));
+        numSentenceStart(l.notices_48h_count) + " " + plural(l.notices_48h_count, "notice") + ", " + numWord(l.contributions_48h) + " " + plural(l.contributions_48h, "contribution") + ", " + money(l.notices_48h_total) + "."])]));
     });
     // Every contribution from every notice in one sortable table, the same
     // pattern as the 24-hour table below it, with the notice linked per row.
@@ -596,7 +584,7 @@
     }
     renderLate48Rows();
     const ie = lm.ie_24h || [];
-    byId("late-24-count").textContent = fmtInt.format(ie.length) + " 24-hour " + plural(ie.length, "report") + " on file, totaling " + money(ie.reduce((a, r) => a + r.amount, 0)) + ".";
+    byId("late-24-count").textContent = fmtInt.format(ie.length) + " " + plural(ie.length, "report") + ", " + money(ie.reduce((a, r) => a + r.amount, 0)) + ".";
     renderTable(byId("late-24"), IE_COLS, ie, { defaultSort: "date", empty: "No 24-hour independent expenditure reports naming either candidate are on file." });
   }
 
@@ -604,13 +592,12 @@
   function renderCrossover() {
     const d = state.data, x = d.crossover;
     const pcs = x.primary_candidates.map((p) => p.name);
-    clear(byId("crossover-note")).append(
-      "Individual donors to " + pcs.slice(0, -1).join(", ") + " or " + pcs[pcs.length - 1] + " in the primary who later gave to Dan Koh or Micah Jones. The match uses the donor’s normalized name plus ZIP code, so the results are likely matches, not confirmed identities. The full rule is in the methodology. " + fmtInt.format(x.primary_donor_keys) + " distinct name-and-ZIP records gave to the six primary campaigns.");
+    clear(byId("crossover-note")).append("Primary-season donors who later gave to Koh or Jones, matched by name and ZIP code. ", link("#method-crossover", "How the match works"));
     const summary = clear(byId("crossover-summary"));
     cands().forEach((c) => {
       const s = c.crossover;
       const kids = [el("p", { class: "panel-note", style: "margin:0 0 .6rem;max-width:none;text-align:left" }, [
-        numSentenceStart(s.matches) + " likely " + plural(s.matches, "match", "matches") + " later gave " + c.last_name + " " + money(s.dollars) + " in itemized gifts. " + numSentenceStart(s.matches_after_primary) + " of them gave after the Sept. 1 primary, " + money(s.dollars_after_primary) + "."])];
+        numSentenceStart(s.matches) + " likely " + plural(s.matches, "match", "matches") + ", " + money(s.dollars) + "; " + money(s.dollars_after_primary) + " of it after Sept. 1."])];
       const rows = s.by_primary_candidate.map((p) => [p.candidate + " (" + numWord(p.matches) + ")", p.dollars]);
       const holder = el("div");
       hbarList(holder, rows, Math.max(1, ...rows.map((r) => r[1])), c.key);
@@ -640,7 +627,7 @@
     const x = state.data.crossover;
     const q = (byId("crossover-search").value || "").toLowerCase().trim(), ck = byId("crossover-candidate").value;
     const rows = x.rows.filter((r) => (ck === "__all__" || r.general_key === ck) && (!q || (r.donor + " " + r.city + " " + r.primary_candidates.map((p) => p.candidate).join(" ")).toLowerCase().includes(q)));
-    byId("crossover-count").textContent = fmtInt.format(rows.length) + " of " + fmtInt.format(x.rows.length) + " likely " + plural(x.rows.length, "match", "matches") + " shown, " + money(rows.reduce((a, r) => a + r.general_total, 0)) + " in later gifts.";
+    byId("crossover-count").textContent = fmtInt.format(rows.length) + " of " + fmtInt.format(x.rows.length) + " shown, " + money(rows.reduce((a, r) => a + r.general_total, 0)) + ".";
     renderTable(byId("crossover-table"), XO_COLS, rows, { defaultSort: "general_total", empty: "No likely matches for this selection." });
   }
 
@@ -655,8 +642,7 @@
     cands().forEach((c) => {
       const g = c.geography;
       const kids = stackWithLegend(GEO.map((x) => ({ label: x.label, value: g[x.key], color: x.color })), g.located_total, "in itemized individual gifts with a state on file", "geo-detail-" + c.key);
-      if (g.unknown > 0) kids.push(el("p", { class: "panel-note", style: "margin:.4rem 0 0;max-width:none;text-align:left" }, [money(g.unknown) + " came from donors with no state on file and is left out of the shares above."]));
-      if (g.raw_total > 0) kids.push(el("p", { class: "panel-note", style: "margin:.4rem 0 0;max-width:none;text-align:left" }, ["Includes " + money(g.raw_total) + " from raw filings not yet processed by the FEC."]));
+      if (g.unknown > 0) kids.push(el("p", { class: "panel-note", style: "margin:.4rem 0 0;max-width:none;text-align:left" }, [money(g.unknown) + " with no state on file, not shown."]));
       summary.appendChild(pairBlock(c, kids));
     });
     const tabs = byId("geo-tabs");
@@ -757,11 +743,11 @@
       small.appendChild(b);
     });
     if (state.geoSelected && texts[state.geoSelected]) select(state.geoSelected);
-    else detail.textContent = "No state selected. The amount appears here when a state is selected.";
+    else detail.textContent = "Select a state.";
     const legend = clear(byId("geo-map-legend"));
     legend.appendChild(el("span", {}, ["Fewer dollars"]));
     [0, 0.15, 0.4, 0.7, 1].forEach((t) => legend.appendChild(el("span", { class: "us-map-swatch", style: "background:" + shade(t) })));
-    legend.appendChild(el("span", {}, ["More dollars, relative to the top state (" + money(max) + ")"]));
+    legend.appendChild(el("span", {}, ["More dollars (top state " + money(max) + ")"]));
   }
   function loadUsMapOnce() {
     if (state.usMap || state.usMapLoading) return;
@@ -813,9 +799,9 @@
           ]))),
         ]);
         kids.push(el("div", { class: "table-scroll", tabindex: "0", role: "region", "aria-label": c.name + " party contributions, scrollable" }, [t]));
-        kids.push(el("p", { class: "panel-note", style: "margin:.4rem 0 .8rem;max-width:none;text-align:left" }, ["Itemized party contributions total " + money(p.contributions_total) + "; the committee’s summary page reports " + money(p.contributions_reported_total) + " from party committees."]));
+        kids.push(el("p", { class: "panel-note", style: "margin:.4rem 0 .8rem;max-width:none;text-align:left" }, ["Itemized: " + money(p.contributions_total) + ". Summary page: " + money(p.contributions_reported_total) + "."]));
       } else {
-        kids.push(el("p", { class: "panel-note", style: "margin:0 0 .8rem;max-width:none;text-align:left" }, ["No party-committee contributions appear in " + possessive(c) + " itemized receipts. The committee’s summary page reports " + money(p.contributions_reported_total) + " from party committees."]));
+        kids.push(el("p", { class: "panel-note", style: "margin:0 0 .8rem;max-width:none;text-align:left" }, ["None itemized. Summary page: " + money(p.contributions_reported_total) + "."]));
       }
       kids.push(el("h4", {}, ["Coordinated party expenditures"]));
       if (p.coordinated.length) {
@@ -828,9 +814,9 @@
           ]))),
         ]);
         kids.push(el("div", { class: "table-scroll", tabindex: "0", role: "region", "aria-label": c.name + " coordinated party expenditures, scrollable" }, [t]));
-        kids.push(el("p", { class: "panel-note", style: "margin:.4rem 0 0;max-width:none;text-align:left" }, ["Coordinated party expenditures on " + possessive(c) + " behalf total " + money(p.coordinated_total) + "."]));
+        kids.push(el("p", { class: "panel-note", style: "margin:.4rem 0 0;max-width:none;text-align:left" }, ["Total: " + money(p.coordinated_total) + "."]));
       } else {
-        kids.push(el("p", { class: "panel-note", style: "margin:0;max-width:none;text-align:left" }, ["No coordinated party expenditures on " + possessive(c) + " behalf have been filed on Schedule F."]));
+        kids.push(el("p", { class: "panel-note", style: "margin:0;max-width:none;text-align:left" }, ["None filed."]));
       }
       list.appendChild(pairBlock(c, kids));
     });
@@ -853,7 +839,7 @@
     cs.forEach((c) => {
       const chart = el("div", { class: "timeline-chart" });
       const labels = el("div", { class: "timeline-labels" });
-      const readout = el("p", { class: "seg-detail timeline-readout", id: "timeline-readout-" + c.key, "aria-live": "polite" }, ["Select a bar for the week’s exact figures."]);
+      const readout = el("p", { class: "seg-detail timeline-readout", id: "timeline-readout-" + c.key, "aria-live": "polite" }, ["Select a week."]);
       const desc = [];
       const bars = [];
       c.timeline_weekly.forEach((w) => {
@@ -895,8 +881,6 @@
       const kids = [];
       if (!c.timeline_weekly.length) kids.push(emptyState("No itemized transactions dated since " + fmtDate(tl.start) + " are on file."));
       else kids.push(el("div", { class: "week-chart" }, [axis, el("div", { class: "timeline-plot" }, [grid, chart, labels]), readout]), el("p", { class: "sr-only" }, [c.name + ", by week: " + desc.join("; ")]));
-      const tot = c.timeline_weekly.reduce((a, w) => ({ r: a.r + w.receipts + w.raw_receipts, s: a.s + w.disbursements + w.raw_disbursements }), { r: 0, s: 0 });
-      kids.push(el("p", { class: "panel-note", style: "margin:.6rem 0 0;max-width:none;text-align:left" }, ["Since " + fmtDate(tl.start) + ": " + money(tot.r) + " in itemized receipts and " + money(tot.s) + " in itemized disbursements. Unitemized gifts under $200 appear only in the summary totals, not here."]));
       pairHost.appendChild(pairBlock(c, kids));
     });
     const dl = clear(byId("deadline-list"));
@@ -930,12 +914,12 @@
       const kids = [];
       if (!entries.length) kids.push(emptyState("No itemized disbursements on file."));
       else {
-        kids.push(...stackWithLegend(entries.map(([k, v]) => ({ label: k, value: v, color: SPEND_COLORS[k] || "#9a9a9a" })), s.itemized_total, "in itemized disbursements", "spend-detail-" + c.key));
-        const holder = el("div", { style: "margin-top:.8rem" });
+        const holder = el("div");
         hbarList(holder, entries, entries[0][1], c.key);
         kids.push(holder);
+        kids.push(el("p", { class: "sr-only" }, [entries.map(([k, v]) => k + ": " + money(v) + ", " + pctOf(v, s.itemized_total, "in itemized disbursements")).join("; ")]));
       }
-      kids.push(el("p", { class: "panel-note", style: "margin:.6rem 0 0;max-width:none;text-align:left" }, ["Itemized disbursements total " + money(s.itemized_total) + " across " + fmtInt.format(s.rows) + " rows; the committee’s reported total disbursements are " + money(s.reported_total_disbursements) + ", a figure that also covers unitemized payments." + (s.raw_total > 0 ? " Includes " + money(s.raw_total) + " across " + fmtInt.format(s.raw_rows) + " rows from raw filings not yet processed by the FEC." : "")]));
+      kids.push(el("p", { class: "panel-note", style: "margin:.6rem 0 0;max-width:none;text-align:left" }, ["Itemized: " + money(s.itemized_total) + " of " + money(s.reported_total_disbursements) + " in total disbursements."]));
       host.appendChild(pairBlock(c, kids));
     });
   }
