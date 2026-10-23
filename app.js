@@ -85,7 +85,30 @@
   const RAW_TEXT = "raw filing, not yet processed by the Federal Election Commission";
   function isRaw(source) { return typeof source === "string" && source.indexOf("raw") === 0; }
 
-  const state = { data: null, copy: null, usMap: null, usMapLoading: false, geoKey: "koh", sorts: {} };
+  // One URL, two presentations. The version is chosen by viewport width and
+  // nothing else; crossing 768 px re-renders the components whose markup
+  // differs, from the data already in memory, never a reload or a refetch.
+  const MOBILE_MQ = window.matchMedia("(max-width: 768px)");
+  const state = { data: null, copy: null, usMap: null, usMapLoading: false, geoKey: "koh", geoSelected: null, sorts: {},
+    mobile: MOBILE_MQ.matches, rendered: { timeline: false, spending: false } };
+  function applyVersionAttr() { const app = byId("ma06-app"); if (app) app.dataset.version = state.mobile ? "mobile" : "desktop"; }
+  applyVersionAttr();
+
+  // Compact dollars are a phone-only fallback for a tile value that cannot
+  // fit at 360 px; the full figure stays in title and aria-label. Tables and
+  // the methodology never use it, and the desktop version never does.
+  function compactMoney(v) {
+    const a = Math.abs(v), neg = v < 0 ? "-" : "";
+    if (a >= 1e9) return neg + "$" + trim0((a / 1e9).toFixed(1)) + "B";
+    if (a >= 1e6) return neg + "$" + trim0((a / 1e6).toFixed(1)) + "M";
+    if (a >= 1e4) return neg + "$" + Math.round(a / 1e3) + "K";
+    return money(v);
+  }
+  function tileValue(v) {
+    const full = money(v);
+    if (state.mobile && isNum(v) && full.length > 10) return el("div", { class: "value", title: full, "aria-label": full }, [compactMoney(v)]);
+    return el("div", { class: "value" }, [full]);
+  }
 
   function cand(key) { return state.data.candidates.find((c) => c.key === key); }
   function cands() { return KEYS.map(cand).filter(Boolean); }
@@ -111,9 +134,24 @@
   // -------------------------------------------------------- sortable table
   // Renders a table with aria-sort headers and data-label cells (for the
   // phone-width card reflow). cols: {key,label,format,num}. rows: objects.
+  // opts.mobile picks the phone pattern: "cards" (default; every row becomes
+  // a stacked card of label and value), {pattern: "expand", priority: [keys]}
+  // (priority columns show, a button in the row reveals the rest) or
+  // {pattern: "scroll", cue: id} (horizontal scroll with a sticky first
+  // column, only where comparing across columns is the point).
   function renderTable(table, cols, rows, opts) {
     opts = opts || {};
     const id = table.id;
+    const mobile = opts.mobile || {};
+    const scroller = table.closest(".table-scroll");
+    const scrollPattern = state.mobile && mobile.pattern === "scroll";
+    const expandPattern = state.mobile && mobile.pattern === "expand";
+    table.classList.toggle("scroll-table", scrollPattern);
+    table.classList.toggle("card-table", !scrollPattern);
+    table.classList.toggle("expand-rows", expandPattern);
+    if (scroller) scroller.classList.toggle("scroll-x", scrollPattern);
+    if (mobile.cue) { const cue = byId(mobile.cue); if (cue) cue.hidden = !scrollPattern; }
+    const priority = new Set(mobile.priority || []);
     const sort = state.sorts[id] || (state.sorts[id] = { key: opts.defaultSort || cols[0].key, dir: opts.defaultDir || -1 });
     const thead = clear(table.querySelector("thead"));
     const trh = el("tr");
@@ -132,8 +170,10 @@
         });
         th.appendChild(btn);
       }
+      if (expandPattern && !priority.has(col.key)) th.classList.add("secondary");
       trh.appendChild(th);
     });
+    if (expandPattern) trh.appendChild(el("th", { scope: "col", class: "row-toggle" }, [el("span", { class: "sr-only" }, ["More details"])]));
     thead.appendChild(trh);
     const col = cols.find((c) => c.key === sort.key) || cols[0];
     const sortedRows = [...rows].sort((a, b) => {
@@ -149,8 +189,18 @@
         const tr = el("tr");
         cols.forEach((c) => {
           const cell = c.render ? c.render(r) : (c.num ? money(r[c.key], c.cents) : (r[c.key] == null ? "—" : String(r[c.key])));
-          tr.appendChild(el("td", { class: (c.num ? "num" : "") + (c.wrap ? " wrap-cell" : ""), "data-label": c.label }, [typeof cell === "string" ? cell : cell]));
+          tr.appendChild(el("td", { class: (c.num ? "num" : "") + (c.wrap ? " wrap-cell" : "") + (expandPattern && !priority.has(c.key) ? " secondary" : ""), "data-label": c.label }, [typeof cell === "string" ? cell : cell]));
         });
+        if (expandPattern) {
+          const hiddenCount = cols.length - priority.size;
+          const btn = el("button", { type: "button", class: "row-more", "aria-expanded": "false" }, ["Show " + numWord(hiddenCount) + " more " + plural(hiddenCount, "figure")]);
+          btn.addEventListener("click", () => {
+            const open = tr.classList.toggle("expanded");
+            btn.setAttribute("aria-expanded", open ? "true" : "false");
+            btn.textContent = open ? "Show fewer figures" : "Show " + numWord(hiddenCount) + " more " + plural(hiddenCount, "figure");
+          });
+          tr.appendChild(el("td", { class: "row-toggle" }, [btn]));
+        }
         tbody.appendChild(tr);
       });
     }
@@ -224,25 +274,70 @@
 
   // The primary edition's candidate snapshot cards: photo, name, bar, the
   // same seven figures for each nominee.
+  function snapshotRows(c) {
+    const t = c.totals, g = c.geography || {}, es = c.election_split || {};
+    const through = t.raw_through || t.processed_through || (c.latest_report && c.latest_report.coverage_end);
+    const inDistrict = isNum(g.in_district) && isNum(g.located_total) && g.located_total > 0 ? pct(g.in_district / g.located_total) + " of " + moneyProse(g.located_total) : "not available";
+    return [
+      ["Total receipts", money(t.receipts)],
+      ["Total disbursements", money(t.disbursements)],
+      ["Cash on hand", money(t.cash_on_hand)],
+      ["Debt owed", money(t.debts)],
+      ["Contributor records", isNum(es.contributors_total) ? fmtInt.format(es.contributors_total) : "not available"],
+      ["Estimated in MA-06", inDistrict],
+      ["Data through", through ? fmtDay(through) : "not reported"],
+    ];
+  }
+  function rawNote(cls) {
+    const note = el("p", { class: cls }, ["Receipts, disbursements, cash and debt come from a "]);
+    note.appendChild(rawPill());
+    note.appendChild(document.createTextNode(" the FEC has posted but not yet processed."));
+    return note;
+  }
+  // Phone version: one three-column comparison (measure | Koh | Jones), one
+  // measure per row, the receipts share bars spanning the width beneath the
+  // receipts row. Real table markup keeps the semantics.
+  function renderSnapshotTable(host, cs) {
+    const max = Math.max(...cs.map((c) => (isNum(c.totals.receipts) ? c.totals.receipts : 0)), 0);
+    const head = el("tr", {}, [el("th", { scope: "col" }, [el("span", { class: "sr-only" }, ["Measure"])])]);
+    cs.forEach((c) => head.appendChild(el("th", { scope: "col", class: c.key }, [
+      PHOTOS[c.key] ? el("img", { class: "candidate-photo", src: ASSET_BASE + PHOTOS[c.key], alt: "", width: "56", height: "56", loading: "lazy" }) : null,
+      el("span", { class: "name" }, [c.name]), el("span", { class: "party" }, ["(" + c.party_abbr + ")"]),
+    ])));
+    const body = el("tbody");
+    const rowsBy = cs.map(snapshotRows);
+    rowsBy[0].forEach((row, i) => {
+      const tr = el("tr", {}, [el("th", { scope: "row" }, [row[0]])]);
+      cs.forEach((c, j) => tr.appendChild(el("td", {}, [rowsBy[j][i][1]])));
+      body.appendChild(tr);
+      if (i === 0) {
+        const td = el("td", { class: "bar-row", colspan: String(cs.length + 1) });
+        cs.forEach((c) => {
+          const share = max > 0 && isNum(c.totals.receipts) ? (c.totals.receipts / max) * 100 : 0;
+          td.appendChild(el("div", { class: "who " + c.key }, [c.last_name + ", share of the larger figure"]));
+          td.appendChild(el("div", { class: "mini-bar " + c.key, role: "img", "aria-label": c.name + " total receipts " + money(c.totals.receipts) + (max > 0 ? ", " + pct(share / 100) + " of the larger figure" : "") }, [el("span", { style: "width:" + share + "%" })]));
+        });
+        body.appendChild(el("tr", {}, [td]));
+      }
+    });
+    const table = el("table", { class: "snapshot-table" }, [el("thead", {}, [head]), body]);
+    host.appendChild(table);
+    const rawOnes = cs.filter((c) => isRaw(c.totals.source));
+    if (rawOnes.length) {
+      const note = el("p", { class: "snapshot-note" }, [(rawOnes.length === cs.length ? "Both nominees’ receipts" : possessive(rawOnes[0]) + " receipts") + ", disbursements, cash and debt come from a "]);
+      note.appendChild(rawPill()); note.appendChild(document.createTextNode(" the FEC has posted but not yet processed."));
+      host.appendChild(note);
+    }
+  }
   function renderCandidateCards(cs) {
     const host = byId("overview-cards");
     if (!host) return;
-    const max = Math.max(...cs.map((c) => (isNum(c.totals.receipts) ? c.totals.receipts : 0)), 0);
     clear(host);
+    if (state.mobile) { renderSnapshotTable(host, cs); return; }
+    const max = Math.max(...cs.map((c) => (isNum(c.totals.receipts) ? c.totals.receipts : 0)), 0);
     cs.forEach((c) => {
-      const t = c.totals, g = c.geography || {}, es = c.election_split || {};
-      const through = t.raw_through || t.processed_through || (c.latest_report && c.latest_report.coverage_end);
-      // Every percentage on the page states its base: "7.3% of $4.6 million".
-      const inDistrict = isNum(g.in_district) && isNum(g.located_total) && g.located_total > 0 ? pct(g.in_district / g.located_total) + " of " + moneyProse(g.located_total) : "not available";
-      const rows = [
-        ["Total receipts", money(t.receipts)],
-        ["Total disbursements", money(t.disbursements)],
-        ["Cash on hand", money(t.cash_on_hand)],
-        ["Debt owed", money(t.debts)],
-        ["Contributor records", isNum(es.contributors_total) ? fmtInt.format(es.contributors_total) : "not available"],
-        ["Estimated in MA-06", inDistrict],
-        ["Data through", through ? fmtDay(through) : "not reported"],
-      ];
+      const t = c.totals;
+      const rows = snapshotRows(c);   // every percentage states its base: "7.3% of $4.6 million"
       const dl = el("dl", {});
       rows.forEach(([k, v]) => { dl.appendChild(el("dt", {}, [k])); dl.appendChild(el("dd", {}, [v])); });
       const share = max > 0 && isNum(t.receipts) ? (t.receipts / max) * 100 : 0;
@@ -252,12 +347,7 @@
         el("div", { class: "mini-bar " + c.key, role: "img", "aria-label": c.name + " total receipts " + money(t.receipts) + (max > 0 ? ", " + pct(share / 100) + " of the larger figure" : "") }, [el("span", { style: "width:" + share + "%" })]),
         dl,
       ]);
-      if (isRaw(t.source)) {
-        const note = el("p", { class: "card-note" }, ["Receipts, disbursements, cash and debt come from a "]);
-        note.appendChild(rawPill());
-        note.appendChild(document.createTextNode(" the FEC has posted but not yet processed."));
-        card.appendChild(note);
-      }
+      if (isRaw(t.source)) card.appendChild(rawNote("card-note"));
       host.appendChild(card);
     });
   }
@@ -314,7 +404,7 @@
           col.appendChild(el("div", { class: "sub" }, [t.sub(c)]));
           col.appendChild(el("div", { class: "bar " + c.key, role: "img", "aria-label": c.name + " spending rate: " + (isNum(v) ? pct(v) + " " + t.sub(c) : "not reported") }, [el("span", { style: "width:" + (isNum(v) ? Math.min(100, v * 100) : 0) + "%" })]));
         } else {
-          col.appendChild(el("div", { class: "value" }, [money(v)]));
+          col.appendChild(tileValue(v));
           const sub = el("div", { class: "sub" }, [t.sub(c)]);
           if (isRaw(c.totals.source)) { sub.appendChild(document.createTextNode(" ")); sub.appendChild(rawPill()); }
           col.appendChild(sub);
@@ -403,7 +493,7 @@
       groupCols.push({ key: c.key + "_support", label: "Supports " + c.last_name, num: true });
       groupCols.push({ key: c.key + "_oppose", label: "Opposes " + c.last_name, num: true });
     });
-    renderTable(byId("outside-groups"), groupCols, os.by_group, { defaultSort: "total", empty: "No independent expenditures supporting or opposing either candidate are on file for the 2026 cycle." });
+    renderTable(byId("outside-groups"), groupCols, os.by_group, { defaultSort: "total", mobile: { pattern: "expand", priority: ["group", "total"] }, empty: "No independent expenditures supporting or opposing either candidate are on file for the 2026 cycle." });
 
     const sel = byId("outside-candidate");
     if (!sel.dataset.filled) {
@@ -576,6 +666,14 @@
   }
   function lerp(a, b, t) { return Math.round(a + (b - a) * t); }
   function shade(t) { const f = [251, 246, 238], to = [194, 38, 29]; return "rgb(" + lerp(f[0], to[0], t) + "," + lerp(f[1], to[1], t) + "," + lerp(f[2], to[2], t) + ")"; }
+  // The Northeast inset: the viewBox region that holds the nine small states
+  // (VT, NH, MA, RI, CT, NJ, DE, MD, DC) at about three times the main
+  // map's scale. On phones a row of buttons makes each one a 44 px target.
+  const INSET_VIEWBOX = "778 98 184 194";
+  const SMALL_STATES = ["VT", "NH", "MA", "RI", "CT", "NJ", "DE", "MD", "DC"];
+  function stateText(c, info, amt) {
+    return info.name + ": " + (amt > 0 ? money(amt) + " in itemized individual gifts to " + c.last_name : "no itemized individual gifts to " + c.last_name + " on file");
+  }
   function renderUsMap(c) {
     const wrap = byId("geo-map-wrap");
     if (!wrap || !state.usMap) return;
@@ -583,28 +681,66 @@
     c.geography.by_state.forEach((s) => { amounts[s[0].toLowerCase()] = s[1]; });
     const max = Math.max(1, ...c.geography.by_state.map((s) => s[1]));
     const NS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(NS, "svg");
-    svg.setAttribute("viewBox", state.usMap.viewBox);
-    svg.setAttribute("class", "us-map");
-    svg.setAttribute("role", "group");
-    svg.setAttribute("aria-label", "Map of the United States shaded by itemized individual dollars given to " + c.name + ", by state. The Top states list below has every figure.");
     const detail = byId("geo-map-detail");
-    Object.entries(state.usMap.states).forEach(([postal, info]) => {
-      const amt = amounts[info.name.toLowerCase()] || 0;
-      const path = document.createElementNS(NS, "path");
-      path.setAttribute("d", info.d);
-      path.setAttribute("fill", shade(amt > 0 ? Math.sqrt(amt / max) : 0));
-      path.setAttribute("class", "us-state" + (postal === "MA" ? " us-state-home" : ""));
-      path.setAttribute("tabindex", "0");
-      path.setAttribute("role", "button");
-      const text = info.name + ": " + (amt > 0 ? money(amt) + " in itemized individual gifts to " + c.last_name : "no itemized individual gifts to " + c.last_name + " on file");
-      path.setAttribute("aria-label", text);
-      const act = () => { detail.textContent = text + "."; };
-      ["mouseenter", "focus", "click"].forEach((ev) => path.addEventListener(ev, act));
-      path.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); act(); } });
-      svg.appendChild(path);
+    const texts = {};
+    const paths = { main: {}, inset: {} };
+    const buttons = {};
+    function select(postal) {
+      state.geoSelected = postal;
+      Object.values(paths.main).concat(Object.values(paths.inset)).forEach((p) => p.classList.toggle("selected", p.dataset.state === postal));
+      Object.entries(buttons).forEach(([k, b]) => { b.classList.toggle("selected", k === postal); b.setAttribute("aria-pressed", k === postal ? "true" : "false"); });
+      detail.textContent = texts[postal] + ".";
+    }
+    function makeSvg(viewBox, label, focusable) {
+      const svg = document.createElementNS(NS, "svg");
+      svg.setAttribute("viewBox", viewBox);
+      svg.setAttribute("class", "us-map");
+      svg.setAttribute("role", "group");
+      svg.setAttribute("aria-label", label);
+      const store = focusable ? paths.main : paths.inset;
+      Object.entries(state.usMap.states).forEach(([postal, info]) => {
+        const amt = amounts[info.name.toLowerCase()] || 0;
+        texts[postal] = stateText(c, info, amt);
+        const path = document.createElementNS(NS, "path");
+        path.setAttribute("d", info.d);
+        path.setAttribute("fill", shade(amt > 0 ? Math.sqrt(amt / max) : 0));
+        path.setAttribute("class", "us-state" + (postal === "MA" ? " us-state-home" : ""));
+        path.dataset.state = postal;
+        if (focusable) { path.setAttribute("tabindex", "0"); path.setAttribute("role", "button"); path.setAttribute("aria-label", texts[postal]); }
+        else { path.setAttribute("aria-hidden", "true"); }
+        path.addEventListener("click", () => select(postal));
+        if (focusable) {
+          path.addEventListener("focus", () => select(postal));
+          path.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(postal); } });
+        }
+        // Desktop hover: a tooltip that follows the pointer. Phones never see it.
+        path.addEventListener("mouseenter", () => { if (!state.mobile) showTip(texts[postal]); });
+        path.addEventListener("mousemove", (e) => { if (!state.mobile) moveTip(e); });
+        path.addEventListener("mouseleave", hideTip);
+        store[postal] = path;
+        svg.appendChild(path);
+      });
+      return svg;
+    }
+    const tip = el("div", { class: "us-map-tip", hidden: "" });
+    function showTip(text) { tip.textContent = text; tip.hidden = false; }
+    function moveTip(e) { const r = wrap.getBoundingClientRect(); tip.style.left = (e.clientX - r.left) + "px"; tip.style.top = (e.clientY - r.top) + "px"; }
+    function hideTip() { tip.hidden = true; }
+    const main = makeSvg(state.usMap.viewBox, "Map of the United States shaded by itemized individual dollars given to " + c.name + ", by state. The Top states list below has every figure.", true);
+    clear(wrap).appendChild(main);
+    wrap.appendChild(tip);
+    const insetHost = clear(byId("geo-map-inset"));
+    insetHost.appendChild(el("p", { class: "inset-label" }, ["New England and mid-Atlantic"]));
+    insetHost.appendChild(makeSvg(INSET_VIEWBOX, "Inset of the Northeast at a larger scale, same shading", false));
+    const small = clear(byId("geo-map-small"));
+    SMALL_STATES.forEach((postal) => {
+      const b = el("button", { type: "button", "aria-pressed": "false", "aria-label": state.usMap.states[postal].name }, [postal]);
+      b.addEventListener("click", () => select(postal));
+      buttons[postal] = b;
+      small.appendChild(b);
     });
-    clear(wrap).appendChild(svg);
+    if (state.geoSelected && texts[state.geoSelected]) select(state.geoSelected);
+    else detail.textContent = "No state selected. The amount appears here when a state is selected.";
     const legend = clear(byId("geo-map-legend"));
     legend.appendChild(el("span", {}, ["Fewer dollars"]));
     [0, 0.15, 0.4, 0.7, 1].forEach((t) => legend.appendChild(el("span", { class: "us-map-swatch", style: "background:" + shade(t) })));
@@ -627,13 +763,17 @@
     }));
     const rows = Object.values(byTown).map((r) => { cs.forEach((c) => { r[c.key + "_amount"] = r[c.key + "_amount"] || 0; r[c.key + "_donors"] = r[c.key + "_donors"] || 0; }); r.total = cs.reduce((a, c) => a + r[c.key + "_amount"], 0); return r; });
     const cols = [{ key: "town", label: "Town" }];
-    cs.forEach((c) => {
-      cols.push({ key: c.key + "_amount", label: c.last_name + " dollars", num: true });
-      cols.push({ key: c.key + "_donors", label: c.last_name + " donor records", num: true, render: (r) => fmtInt.format(r[c.key + "_donors"]) });
-    });
-    renderTable(byId("geo-town-table"), cols, rows, { defaultSort: "total", empty: "No district towns on file.", footer: (sorted) => {
+    const amountCols = cs.map((c) => ({ key: c.key + "_amount", label: c.last_name + " dollars", num: true }));
+    const donorCols = cs.map((c) => ({ key: c.key + "_donors", label: c.last_name + " donor records", num: true, render: (r) => fmtInt.format(r[c.key + "_donors"]) }));
+    // Phones: both candidates' dollars first, so they show without scrolling; donor counts follow by scroll.
+    if (state.mobile) cols.push(...amountCols, ...donorCols);
+    else cs.forEach((c, i) => cols.push(amountCols[i], donorCols[i]));
+    renderTable(byId("geo-town-table"), cols, rows, { defaultSort: "total", mobile: { pattern: "scroll", cue: "geo-town-cue" }, empty: "No district towns on file.", footer: (sorted) => {
       const tr = el("tr", {}, [el("td", { "data-label": "Town" }, ["All listed towns"])]);
-      cs.forEach((c) => { tr.appendChild(el("td", { class: "num", "data-label": c.last_name + " dollars" }, [money(sorted.reduce((a, r) => a + r[c.key + "_amount"], 0))])); tr.appendChild(el("td", { class: "num", "data-label": c.last_name + " donor records" }, [fmtInt.format(sorted.reduce((a, r) => a + r[c.key + "_donors"], 0))])); });
+      cols.slice(1).forEach((col) => {
+        const total = sorted.reduce((a, r) => a + r[col.key], 0);
+        tr.appendChild(el("td", { class: "num", "data-label": col.label }, [col.key.endsWith("_donors") ? fmtInt.format(total) : money(total)]));
+      });
       return tr;
     } });
     state.sorts["geo-town-table"].key = state.sorts["geo-town-table"].key || "total";
@@ -680,40 +820,82 @@
   }
 
   // ---------------------------------------------------------------- timeline
+  // Both charts share one scale: max is the largest weekly figure for either
+  // candidate. Bars are buttons; hover, focus and tap write the exact value
+  // into a readout under the chart that stays on screen.
   function renderTimeline() {
     const d = state.data, tl = d.timeline;
     const cs = cands();
+    state.rendered.timeline = true;
     const max = Math.max(1, ...cs.flatMap((c) => c.timeline_weekly.flatMap((w) => [w.receipts + w.raw_receipts, w.disbursements + w.raw_disbursements])));
     const deadlineDays = tl.deadlines.filter((x) => !x.end).map((x) => x.date);
     const win = tl.deadlines.find((x) => x.end);
     const pairHost = clear(byId("timeline-pair"));
+    pairHost.classList.add("timeline-pair");
+    const ticks = state.mobile ? [0, 0.5, 1] : [0, 1 / 3, 2 / 3, 1];
     cs.forEach((c) => {
       const chart = el("div", { class: "timeline-chart" });
       const labels = el("div", { class: "timeline-labels" });
+      const readout = el("p", { class: "seg-detail timeline-readout", id: "timeline-readout-" + c.key, "aria-live": "polite" }, ["Select a bar for the week’s exact figures."]);
       const desc = [];
+      const bars = [];
       c.timeline_weekly.forEach((w) => {
-        const r = w.receipts + w.raw_receipts, s = w.disbursements + w.raw_disbursements;
+        const r = w.receipts + w.raw_receipts, sp = w.disbursements + w.raw_disbursements;
         const hasDeadline = deadlineDays.some((dd) => dd >= w.week_start && dd <= w.week_end);
         const inWindow = win && w.week_end >= win.date && w.week_start <= win.end;
         const label = "Week of " + fmtDay(w.week_start);
         const rTitle = label + ": " + money(r) + " in itemized receipts" + (w.raw_receipts ? " (" + money(w.raw_receipts) + " from raw filings)" : "");
-        const sTitle = label + ": " + money(s) + " in itemized disbursements" + (w.raw_disbursements ? " (" + money(w.raw_disbursements) + " from raw filings)" : "");
-        desc.push(label + " " + money(r) + " received, " + money(s) + " spent");
-        chart.appendChild(el("div", { class: "bar-pair" + (hasDeadline ? " deadline" : "") + (inWindow ? " window" : "") }, [
-          el("div", { class: "bar receipt" + (w.raw_receipts ? " raw" : ""), style: "height:" + ((r / max) * 100) + "%", title: rTitle, role: "img", "aria-label": rTitle }),
-          el("div", { class: "bar disb" + (w.raw_disbursements ? " raw" : ""), style: "height:" + ((s / max) * 100) + "%", title: sTitle, role: "img", "aria-label": sTitle }),
-        ]));
+        const sTitle = label + ": " + money(sp) + " in itemized disbursements" + (w.raw_disbursements ? " (" + money(w.raw_disbursements) + " from raw filings)" : "");
+        desc.push(label + " " + money(r) + " received, " + money(sp) + " spent");
+        const mk = (cls, h, text) => {
+          const b = el("button", { type: "button", class: cls, style: "height:" + ((h / max) * 100) + "%", "aria-label": text });
+          const act = () => { bars.forEach((x) => x.classList.remove("selected")); b.classList.add("selected"); readout.textContent = text + "."; };
+          b.addEventListener("click", act); b.addEventListener("focus", act);
+          b.addEventListener("mouseenter", () => { if (!state.mobile) readout.textContent = text + "."; });
+          bars.push(b);
+          return b;
+        };
+        const pair = el("div", { class: "bar-pair" + (hasDeadline ? " deadline" : "") + (inWindow ? " window" : "") }, [
+          mk("bar receipt" + (w.raw_receipts ? " raw" : ""), r, rTitle),
+          mk("bar disb" + (w.raw_disbursements ? " raw" : ""), sp, sTitle),
+        ]);
+        // Phones: the whole week column is the tap target and reads out both figures.
+        pair.addEventListener("click", () => {
+          if (!state.mobile) return;
+          chart.querySelectorAll(".bar-pair.selected").forEach((x) => x.classList.remove("selected"));
+          pair.classList.add("selected");
+          readout.textContent = label + ": " + money(r) + " in itemized receipts, " + money(sp) + " in itemized disbursements" + (w.raw_receipts || w.raw_disbursements ? " (includes raw filings)" : "") + ".";
+        });
+        chart.appendChild(pair);
         labels.appendChild(el("span", {}, [fmtDay(w.week_start)]));
+      });
+      const axis = el("div", { class: "timeline-axis", "aria-hidden": "true" });
+      const grid = el("div", { class: "timeline-grid", "aria-hidden": "true" });
+      ticks.forEach((t) => {
+        axis.appendChild(el("span", { style: "bottom:" + (t * 100) + "%" }, [money(max * t)]));
+        grid.appendChild(el("span", { style: "bottom:" + (t * 100) + "%" }));
       });
       const kids = [];
       if (!c.timeline_weekly.length) kids.push(emptyState("No itemized transactions dated since " + fmtDate(tl.start) + " are on file."));
-      else kids.push(el("div", { class: "week-chart" }, [chart, labels]), el("p", { class: "sr-only" }, [c.name + ", by week: " + desc.join("; ")]));
+      else kids.push(el("div", { class: "week-chart" }, [axis, el("div", { class: "timeline-plot" }, [grid, chart, labels]), readout]), el("p", { class: "sr-only" }, [c.name + ", by week: " + desc.join("; ")]));
       const tot = c.timeline_weekly.reduce((a, w) => ({ r: a.r + w.receipts + w.raw_receipts, s: a.s + w.disbursements + w.raw_disbursements }), { r: 0, s: 0 });
       kids.push(el("p", { class: "panel-note", style: "margin:.6rem 0 0;max-width:none;text-align:left" }, ["Since " + fmtDate(tl.start) + ": " + money(tot.r) + " in itemized receipts and " + money(tot.s) + " in itemized disbursements. Unitemized gifts under $200 appear only in the summary totals, not here."]));
       pairHost.appendChild(pairBlock(c, kids));
     });
     const dl = clear(byId("deadline-list"));
     tl.deadlines.forEach((x) => dl.appendChild(el("li", {}, [(x.end ? fmtDay(x.date) + " through " + fmtDay(x.end) : fmtDate(x.date)) + ": " + x.label + (x.covers ? " (" + x.covers + ")" : "")])));
+    requestAnimationFrame(thinTimelineLabels);
+  }
+  // Hide every other x-axis label when they would overlap (measured, so
+  // rotation and resizes re-decide); the hidden ones keep their space.
+  function thinTimelineLabels() {
+    document.querySelectorAll("#ma06-app .timeline-labels").forEach((row) => {
+      const spans = [...row.children];
+      if (!spans.length) return;
+      const each = row.clientWidth / spans.length;
+      const step = each >= 54 ? 1 : each >= 27 ? 2 : 3;
+      spans.forEach((sp, i) => sp.classList.toggle("thin", i % step !== 0));
+    });
   }
 
   // ---------------------------------------------------------------- spending
@@ -762,7 +944,26 @@
       ["Spending categories", "A keyword match against each committee’s own description of the expense, in this order, first match wins: " + m.category_rules.map((r) => r.category + " (" + r.patterns.map((p) => p.replace(/\\b/g, "").replace(/[\\()?!|]/g, "")).join(", ").toLowerCase() + ")").join("; ") + ". Anything else with a description is “Other”; a blank description is “Uncategorized.” These are the primary edition’s rules, unchanged."],
       ["What the filings cannot show", "Unitemized gifts, those from donors whose total giving stays at $200 or less, appear only as a lump sum on the summary page, so they are missing from the geography, election split, crossover and weekly figures. Employer, occupation and address fields are self-reported. Spending descriptions are the filer’s own words, and a payment to a processor or consultant can hide the ultimate vendor. Outside spending that a group has not yet reported, and any spending on communications that are not independent expenditures, do not appear. The crossover match cannot tell two people with the same name and ZIP code apart, and misses a donor who moved or changed how they wrote their name."],
     ];
-    items.forEach(([dt, dd]) => { dl.appendChild(el("dt", {}, [dt])); dl.appendChild(el("dd", {}, [dd])); });
+    const ids = ["source", "report", "amendments", "memo", "reconciliation", "elections", "outside", "late", "crossover", "district", "records", "spending", "limits"];
+    const host = clear(byId("methodology-list"));
+    if (state.mobile) {
+      // Phone version: each subsection is its own collapsible item, collapsed
+      // by default; a link to one of them opens it.
+      const list = el("div", { class: "method-list" });
+      items.forEach(([dt, dd], i) => list.appendChild(el("details", { class: "method-item", id: "method-" + ids[i] }, [el("summary", {}, [dt]), el("p", {}, [dd])])));
+      host.appendChild(list);
+    } else {
+      const list = el("dl", {});
+      items.forEach(([dt, dd], i) => { list.appendChild(el("dt", { id: "method-" + ids[i], class: "method-item" }, [dt])); list.appendChild(el("dd", {}, [dd])); });
+      host.appendChild(list);
+    }
+    openMethodFromHash();
+  }
+  function openMethodFromHash() {
+    const h = location.hash;
+    if (!h || h.indexOf("#method-") !== 0) return;
+    const item = document.querySelector(h);
+    if (item && item.tagName === "DETAILS") item.open = true;
   }
 
   // ---------------------------------------------------------------- nav
@@ -798,12 +999,32 @@
     renderCrossover();
     renderGeography();
     renderParty();
-    renderTimeline();
-    renderSpending();
     renderMethodology();
     initSectionNav();
     observeLazy("geography", loadUsMapOnce);
+    // Below-the-fold charts render when their section nears the viewport.
+    observeLazy("timeline", renderTimeline);
+    observeLazy("spending", () => { state.rendered.spending = true; renderSpending(); });
+    window.addEventListener("hashchange", openMethodFromHash);
+    // Rotation and resizes: re-decide which x-axis labels fit, debounced.
+    window.addEventListener("resize", debounce(() => { if (state.rendered.timeline) thinTimelineLabels(); }, 150));
   }
+  // Crossing 768 px by resize or rotation swaps the presentation of every
+  // component whose markup differs, from the data already loaded.
+  function onVersionChange(e) {
+    state.mobile = e.matches;
+    applyVersionAttr();
+    if (!state.data) return;
+    renderOverview();
+    renderOutside();
+    renderLate();
+    renderCrossover();
+    renderGeography();
+    renderParty();
+    if (state.rendered.timeline) renderTimeline();
+    renderMethodology();
+  }
+  if (MOBILE_MQ.addEventListener) MOBILE_MQ.addEventListener("change", onVersionChange); else MOBILE_MQ.addListener(onVersionChange);
   // Inside a Ghost HTML card the script is injected after the page has
   // parsed, so DOMContentLoaded has already fired; start at once in that case.
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

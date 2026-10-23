@@ -1,10 +1,20 @@
 /* ==========================================================================
    MA-06 general-election campaign finance dashboard
    The Marblehead Independent
+
    Brand tokens, Georgia type and the panel/section pattern carried over
    from the primary-season edition. Every rule is scoped under #ma06-app
    so the same stylesheet works on the standalone page and inside a Ghost
    HTML card without fighting the theme.
+
+   The file has three parts:
+     1. Shared tokens and components, used by both versions.
+     2. Desktop version, 769 px and wider (@media (min-width: 769px)).
+     3. Mobile version, 768 px and narrower (@media (max-width: 768px)),
+        a phone layout of its own, not the desktop layout squeezed down.
+   app.js picks the same breakpoint with matchMedia and re-renders the
+   components whose markup differs (tables, snapshots, map, charts,
+   methodology); the data layer is shared.
    ========================================================================== */
 
 :root, #ma06-app {
@@ -25,11 +35,18 @@
   --serif: Georgia, "Times New Roman", Times, serif;
   --sans: Georgia, "Times New Roman", Times, serif;
 
-  --maxw: 1180px;
-  --pad: clamp(1rem, 3.5vw, 2.25rem);
+  --maxw: 1200px;
+  --pad: 32px;
   --radius: 6px;
+  --nav-h: 56px;            /* sticky nav height; sections keep clear of it */
+  --tap: 44px;              /* minimum touch target */
 }
 
+/* Page-level rules apply only on the standalone page; inside Ghost the theme owns html and body. */
+body.ma06-page { margin: 0; background: var(--shell-white); overflow-x: hidden; }
+html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+/* Reduced motion comes after the smooth rule so it wins the cascade. */
 @media (prefers-reduced-motion: reduce) {
   html:has(body.ma06-page) { scroll-behavior: auto; }
   #ma06-app *, #ma06-app *::before, #ma06-app *::after {
@@ -37,45 +54,47 @@
   }
 }
 
-/* Page-level rules apply only on the standalone page; inside Ghost the theme owns html and body. */
-body.ma06-page { margin: 0; background: var(--shell-white); }
-html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
-
 #ma06-app {
   background: var(--shell-white);
   color: var(--harbor-black);
   font-family: var(--sans);
+  font-size: 1rem;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-align: center;
+  overflow-x: clip;
 }
 #ma06-app *, #ma06-app *::before, #ma06-app *::after { box-sizing: border-box; }
+#ma06-app img, #ma06-app svg { max-width: 100%; }
 
 #ma06-app .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
   clip: rect(0,0,0,0); white-space: nowrap; border: 0;
 }
 
-#ma06-app .wrap { max-width: var(--maxw); margin-inline: auto; padding-inline: var(--pad); }
+#ma06-app .wrap { max-width: calc(var(--maxw) + 2 * var(--pad)); margin-inline: auto; padding-inline: var(--pad); }
 
 #ma06-app h1, #ma06-app h2, #ma06-app h3, #ma06-app h4 {
   font-family: var(--serif); font-weight: 700; margin: 0 0 .4rem; letter-spacing: -.01em; color: var(--harbor-black);
 }
 #ma06-app h1 { font-size: clamp(1.7rem, 3.2vw, 2.5rem); line-height: 1.1; text-wrap: balance; }
 #ma06-app h2 { font-size: clamp(1.3rem, 2.2vw, 1.7rem); line-height: 1.2; }
-#ma06-app h3 { font-size: 1.05rem; }
+#ma06-app h3 { font-size: 1.1rem; }
+#ma06-app h4 { font-size: 1rem; }
 #ma06-app p { margin: 0 0 .8rem; }
 #ma06-app a { color: var(--slate-blue); }
 #ma06-app a:hover { text-decoration: underline; }
 #ma06-app a:focus-visible, #ma06-app button:focus-visible, #ma06-app input:focus-visible, #ma06-app select:focus-visible, #ma06-app summary:focus-visible {
   outline: 2px solid var(--independent-red); outline-offset: 2px;
 }
+/* Every section anchor lands below the sticky nav. */
+#ma06-app section.panel, #ma06-app .method-item { scroll-margin-top: calc(var(--nav-h) + 12px); }
 
 #ma06-app .kicker {
   text-transform: uppercase; letter-spacing: .14em; font-weight: 700; font-size: .72rem; color: var(--independent-red);
 }
 #ma06-app .dek {
-  color: var(--ink-soft); font-family: var(--serif); font-style: italic; font-size: 1.02rem; max-width: 46rem; margin-inline: auto;
+  color: var(--ink-soft); font-family: var(--serif); font-style: italic; font-size: 1.1rem; max-width: 46rem; margin-inline: auto;
 }
 #ma06-app .byline {
   font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); margin-top: .6rem;
@@ -83,112 +102,95 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
 
 /* ---- masthead ---- */
 #ma06-app .masthead { padding-block: clamp(1.6rem, 5vw, 2.6rem) 1.2rem; border-bottom: 1px solid var(--hairline); }
-#ma06-app .masthead-logo { display: inline-block; margin-bottom: 1rem; }
+#ma06-app .masthead-logo { display: inline-block; margin-bottom: 1rem; max-width: 100%; }
 #ma06-app .masthead-logo img { display: block; width: 100%; max-width: 380px; height: auto; }
 #ma06-app .masthead-logo:hover { text-decoration: none; opacity: .88; }
 #ma06-app .meta-line {
-  font-size: .78rem; color: var(--ink-soft); margin-top: .6rem; display: flex; flex-wrap: wrap; justify-content: center; gap: .3rem 1rem;
+  font-size: .9rem; color: var(--ink-soft); margin-top: .6rem; display: flex; flex-wrap: wrap; justify-content: center; gap: .3rem 1rem;
 }
+#ma06-app .meta-line > span { max-width: 100%; }
+#ma06-app .meta-label { white-space: nowrap; }             /* each label stays with its value */
 #ma06-app .meta-line strong { color: var(--harbor-black); }
 #ma06-app .build-note {
-  margin: .9rem auto 0; max-width: 40rem; font-size: .8rem; color: var(--harbor-black); background: var(--paper);
+  margin: .9rem auto 0; max-width: 40rem; font-size: .9rem; color: var(--harbor-black); background: var(--paper);
   border: 1px solid var(--independent-red); border-radius: var(--radius); padding: .6rem .8rem;
 }
 
 /* Masthead photo, as on the primary edition; here a two-up pair of the nominees. */
 #ma06-app .masthead-photo { margin: 1.4rem auto 0; max-width: var(--maxw); }
 #ma06-app .masthead-photo img { display: block; width: 100%; height: auto; border-radius: var(--radius); }
-#ma06-app .masthead-photo figcaption { font-size: .74rem; color: var(--ink-soft); margin-top: .45rem; text-align: center; }
+#ma06-app .masthead-photo figcaption { font-size: .85rem; color: var(--ink-soft); margin-top: .45rem; text-align: center; }
 #ma06-app .masthead-photo-pair .pair { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; max-width: 860px; margin-inline: auto; }
 #ma06-app .masthead-photo-pair img { aspect-ratio: 1 / 1; object-fit: cover; object-position: top; }
-@media (max-width: 480px) { #ma06-app .masthead-photo-pair .pair { gap: .5rem; } }
-
-/* Phone-only hint, a suggestion rather than a requirement: every section
-   still works in portrait, this just says landscape is roomier. */
-#ma06-app .mobile-rotate-hint { display: none; }
-@media (max-width: 820px) {
-  #ma06-app .mobile-rotate-hint {
-    display: block; margin: .6rem 0 0; font-size: .8rem; color: var(--ink-soft);
-    padding: .5rem .75rem; border: 1px solid var(--hairline); border-radius: 6px; background: rgba(0,0,0,.02);
-  }
-}
 
 /* ---- reader-support card (shared with the primary edition) ---- */
 #ma06-app .support-card {
   display: block; text-align: center; border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline);
   padding: 1.3rem 1rem; margin: 1.8rem auto; max-width: 40rem;
 }
-#ma06-app .support-card p { margin: 0 auto .7rem; font-size: .86rem; color: var(--ink-soft); max-width: 34rem; }
+#ma06-app .support-card p { margin: 0 auto .7rem; font-size: .95rem; color: var(--ink-soft); max-width: 34rem; }
 #ma06-app .support-card .kicker { margin-bottom: .5rem; color: var(--independent-red); letter-spacing: .1em; }
 #ma06-app .support-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; margin-bottom: .7rem; }
-#ma06-app .support-actions .btn { font-size: .72rem; font-weight: 600; padding: .34rem .7rem; background: transparent; color: var(--harbor-black); border-color: var(--hairline); }
-#ma06-app .support-actions .btn:hover { background: var(--linen); color: var(--harbor-black); border-color: var(--hairline); }
-#ma06-app .support-newsletter { font-size: .78rem; color: var(--ink-soft); margin-bottom: 0; }
+#ma06-app .support-actions .btn { font-size: .8rem; font-weight: 600; padding: .34rem .7rem; background: transparent; color: var(--harbor-black); border-color: var(--hairline); display: inline-flex; align-items: center; }
+#ma06-app .support-actions .btn:hover, #ma06-app .support-actions .btn:focus-visible { background: var(--linen); color: var(--harbor-black); border-color: var(--hairline); }
+#ma06-app .support-newsletter { font-size: .9rem; color: var(--ink-soft); margin-bottom: 0; }
 
 /* ---- sticky section nav ---- */
 #ma06-app .sectionnav {
   text-align: left; position: sticky; top: 0; z-index: 30; background: rgba(253,249,244,.96);
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); border-bottom: 1px solid var(--hairline);
+  padding-top: env(safe-area-inset-top, 0px);
 }
-#ma06-app .sectionnav .wrap { display: flex; align-items: center; gap: .3rem; overflow-x: auto; padding-block: .55rem; scrollbar-width: thin; }
+#ma06-app .sectionnav .wrap { display: flex; align-items: center; gap: .3rem; padding-block: .5rem; min-height: var(--nav-h); }
 #ma06-app .sectionnav-links { display: flex; gap: .3rem; flex: 1; }
-/* "safe center" falls back to start when the links overflow the wrap, so the
-   home link is never clipped off the left edge on narrower desktops. */
-@media (min-width: 821px) { #ma06-app .sectionnav .wrap { justify-content: center; justify-content: safe center; } }
-#ma06-app .sectionnav-jump { display: none; }
-@media (max-width: 820px) {
-  #ma06-app .sectionnav-links { display: none; }
-  #ma06-app .sectionnav-jump { display: block; flex: 1; }
-  #ma06-app .sectionnav-jump select {
-    width: 100%; font-family: var(--sans); font-size: .82rem; padding: .5rem .6rem; border: 1px solid var(--hairline);
-    border-radius: 6px; background: #fff; color: var(--harbor-black); min-height: 44px;
-  }
-}
 #ma06-app .sectionnav a {
-  font-size: .74rem; font-weight: 600; color: var(--harbor-black); text-transform: uppercase; letter-spacing: .04em;
-  white-space: nowrap; padding: .32rem .68rem; border-radius: 999px; border: 1px solid transparent; text-decoration: none;
+  font-size: .76rem; font-weight: 600; color: var(--harbor-black); text-transform: uppercase; letter-spacing: .04em;
+  white-space: nowrap; padding: .4rem .7rem; border-radius: 999px; border: 1px solid transparent; text-decoration: none;
+  display: inline-flex; align-items: center; min-height: 36px;
 }
-#ma06-app .sectionnav a:hover { border-color: var(--hairline); text-decoration: none; }
+#ma06-app .sectionnav a:hover, #ma06-app .sectionnav a:focus-visible { border-color: var(--hairline); text-decoration: none; }
 #ma06-app .sectionnav a.active { color: var(--independent-red); border-color: var(--independent-red); }
 #ma06-app .sectionnav a.nav-home {
   color: var(--independent-red); margin-right: .5rem; padding-right: .8rem; border-right: 1px solid var(--hairline); border-radius: 0;
 }
+#ma06-app .sectionnav-jump { display: none; }
 
 /* ---- panels ---- */
 #ma06-app section.panel { padding-block: clamp(1.6rem, 4vw, 2.6rem); border-bottom: 1px solid var(--hairline); }
 #ma06-app section.panel:last-of-type { border-bottom: 0; }
 #ma06-app .panel-head { margin-bottom: 1.1rem; }
-#ma06-app .panel-note { font-size: .84rem; color: var(--ink-soft); max-width: 48rem; margin-inline: auto; }
-#ma06-app .finding { font-size: .95rem; max-width: 48rem; margin: 0 auto 1rem; }
+#ma06-app .panel-note { font-size: 1rem; color: var(--ink-soft); max-width: 48rem; margin-inline: auto; }
+#ma06-app .finding { font-size: 1.05rem; max-width: 48rem; margin: 0 auto 1rem; }
 #ma06-app .subhead { margin-top: 1.6rem; }
 
 /* data UI is left-aligned, not editorial prose */
 #ma06-app .metric-grid, #ma06-app .controls, #ma06-app .table-scroll, #ma06-app .stack-bar, #ma06-app .stack-legend,
 #ma06-app .hbar-row, #ma06-app .timeline-chart, #ma06-app .timeline-labels, #ma06-app .pill-tabs,
-#ma06-app .two-col, #ma06-app .h2h, #ma06-app .week-grid { text-align: left; }
+#ma06-app .two-col, #ma06-app .h2h, #ma06-app .week-grid, #ma06-app .us-map-layout, #ma06-app .scroll-cue { text-align: left; }
 
 /* ---- head-to-head metric tiles ---- */
 #ma06-app .metric-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--hairline);
+  display: grid; gap: 1px; background: var(--hairline);
   border: 1px solid var(--hairline); border-radius: var(--radius); overflow: hidden; margin-bottom: 1.4rem;
 }
-@media (max-width: 760px) { #ma06-app .metric-grid { grid-template-columns: 1fr; } }
-#ma06-app .metric-tile { background: var(--paper); padding: .95rem 1rem; }
+#ma06-app .metric-tile { background: var(--paper); padding: .95rem 1rem; min-width: 0; }
 #ma06-app .metric-tile .label {
-  text-transform: uppercase; letter-spacing: .07em; font-size: .68rem; color: var(--ink-soft); font-weight: 700; margin-bottom: .5rem;
+  text-transform: uppercase; letter-spacing: .07em; font-size: .7rem; color: var(--ink-soft); font-weight: 700; margin-bottom: .5rem;
 }
 #ma06-app .h2h { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+#ma06-app .h2h > div { min-width: 0; }
 #ma06-app .h2h .who { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: .1rem; }
 #ma06-app .h2h .who.koh { color: var(--koh); }
 #ma06-app .h2h .who.jones { color: var(--jones); }
-#ma06-app .h2h .value { font-family: var(--serif); font-weight: 700; font-size: clamp(1.1rem, 2.2vw, 1.45rem); font-variant-numeric: tabular-nums; }
-#ma06-app .h2h .sub { font-size: .72rem; color: var(--ink-soft); margin-top: .15rem; }
+#ma06-app .h2h .value { font-family: var(--serif); font-weight: 700; font-size: clamp(1.1rem, 2.2vw, 1.45rem); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+#ma06-app .h2h .sub { font-size: .8rem; color: var(--ink-soft); margin-top: .15rem; }
 #ma06-app .h2h .bar { height: 6px; border-radius: 3px; background: var(--linen); overflow: hidden; margin-top: .35rem; }
 #ma06-app .h2h .bar span { display: block; height: 100%; min-width: 2px; }
 #ma06-app .h2h .bar.koh span { background: var(--koh); }
 #ma06-app .h2h .bar.jones span { background: var(--jones); }
+#ma06-app .loading-state { min-height: 7rem; display: grid; place-items: center; }
 
-/* ---- candidate snapshot cards (the primary edition's card pattern) ---- */
+/* ---- candidate snapshots: cards on desktop, a comparison table on phones ---- */
 #ma06-app .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .9rem; text-align: left; max-width: 640px; margin-inline: auto; }
 #ma06-app .candidate-card {
   background: var(--paper); border: 1px solid var(--hairline); border-radius: var(--radius); padding: .95rem 1rem;
@@ -198,22 +200,36 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
   margin-bottom: .55rem; border: 1px solid var(--hairline);
 }
 #ma06-app .candidate-card h3 { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-bottom: .5rem; }
-#ma06-app .candidate-card h3 .party { font-family: var(--sans); font-weight: 600; font-size: .72rem; color: var(--ink-soft); letter-spacing: .04em; }
-#ma06-app .candidate-card dl { display: grid; grid-template-columns: auto 1fr; gap: .18rem .5rem; font-size: .82rem; margin: 0; }
+#ma06-app .candidate-card h3 .party, #ma06-app .snapshot-table .party { font-family: var(--sans); font-weight: 600; font-size: .72rem; color: var(--ink-soft); letter-spacing: .04em; }
+#ma06-app .candidate-card dl { display: grid; grid-template-columns: auto 1fr; gap: .18rem .5rem; font-size: .9rem; margin: 0; }
 #ma06-app .candidate-card dt { color: var(--ink-soft); }
 #ma06-app .candidate-card dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
-#ma06-app .candidate-card .card-note { font-size: .72rem; color: var(--ink-soft); margin: .55rem 0 0; }
+#ma06-app .candidate-card .card-note, #ma06-app .snapshot-note { font-size: .8rem; color: var(--ink-soft); margin: .55rem 0 0; text-align: left; }
 #ma06-app .mini-bar { height: 6px; border-radius: 3px; background: var(--hairline); overflow: hidden; margin: 0 0 .6rem; }
 #ma06-app .mini-bar span { display: block; height: 100%; min-width: 2px; background: var(--independent-red); }
 #ma06-app .mini-bar.koh span { background: var(--koh); }
 #ma06-app .mini-bar.jones span { background: var(--jones); }
+#ma06-app .snapshot-table { width: 100%; min-width: 0; border: 1px solid var(--hairline); border-radius: var(--radius); overflow: hidden; background: var(--paper); font-size: 1rem; }
+#ma06-app .snapshot-table th, #ma06-app .snapshot-table td { padding: .55rem .6rem; text-align: right; vertical-align: top; }
+#ma06-app .snapshot-table th:first-child, #ma06-app .snapshot-table td:first-child { text-align: left; color: var(--ink-soft); font-weight: 400; }
+#ma06-app .snapshot-table thead th { position: static; background: var(--paper); color: var(--harbor-black); text-transform: none; letter-spacing: 0; white-space: normal; font-size: .95rem; vertical-align: bottom; }
+#ma06-app .snapshot-table thead th { text-align: center; }
+#ma06-app .snapshot-table thead th .candidate-photo { width: 56px; height: 56px; margin: 0 auto .35rem; }
+#ma06-app .snapshot-table thead th .name, #ma06-app .snapshot-table thead th .party { display: block; }
+#ma06-app .snapshot-table thead th.koh { color: var(--koh); }
+#ma06-app .snapshot-table thead th.jones { color: var(--jones); }
+#ma06-app .snapshot-table tbody td { border-top: 1px solid var(--hairline); font-variant-numeric: tabular-nums; white-space: normal; }
+#ma06-app .snapshot-table td.bar-row { text-align: left; padding-top: .35rem; }
+#ma06-app .snapshot-table td.bar-row .who { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin: .2rem 0 .15rem; }
+#ma06-app .snapshot-table td.bar-row .who.koh { color: var(--koh); }
+#ma06-app .snapshot-table td.bar-row .who.jones { color: var(--jones); }
+#ma06-app .snapshot-table td.bar-row .mini-bar { margin-bottom: .2rem; }
 #ma06-app .recon-flag {
-  font-size: .74rem; color: var(--independent-red); margin: .5rem 0 0; border-left: 2px solid var(--independent-red); padding-left: .5rem; text-align: left;
+  font-size: .9rem; color: var(--independent-red); margin: .5rem 0 0; border-left: 2px solid var(--independent-red); padding-left: .5rem; text-align: left;
 }
 
 /* ---- candidate pair blocks (used by several sections) ---- */
-#ma06-app .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; text-align: left; }
-@media (max-width: 760px) { #ma06-app .pair { grid-template-columns: 1fr; } }
+#ma06-app .pair { display: grid; gap: 1.4rem; text-align: left; }
 #ma06-app .pair > div { min-width: 0; }
 #ma06-app .pair h3 { display: flex; align-items: center; gap: .45rem; }
 #ma06-app .swatch-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
@@ -225,42 +241,49 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
 #ma06-app .stack-bar .seg { height: 100%; min-width: 2px; }
 #ma06-app button.seg { border: 0; padding: 0; cursor: pointer; outline-offset: -2px; }
 #ma06-app button.seg:hover, #ma06-app button.seg:focus-visible { filter: brightness(0.85); }
-#ma06-app .stack-legend { display: flex; flex-wrap: wrap; gap: .45rem 1rem; font-size: .76rem; margin-top: .55rem; }
+#ma06-app .stack-legend { display: flex; flex-wrap: wrap; gap: .45rem 1rem; font-size: .9rem; margin-top: .55rem; }
 #ma06-app .stack-legend .item { display: flex; align-items: center; gap: .35rem; }
 #ma06-app .stack-legend .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
-#ma06-app .seg-detail { font-size: .82rem; font-weight: 600; min-height: 1.4em; margin: .4rem 0 0; text-align: left; }
+#ma06-app .seg-detail { font-size: .95rem; font-weight: 600; min-height: 1.4em; margin: .4rem 0 0; text-align: left; }
 
-#ma06-app .hbar-row { display: grid; grid-template-columns: minmax(110px,220px) 1fr auto; align-items: center; gap: .6rem; margin-bottom: .38rem; font-size: .8rem; }
+#ma06-app .hbar-row { display: grid; grid-template-columns: minmax(110px,220px) 1fr auto; align-items: center; gap: .6rem; margin-bottom: .38rem; font-size: .9rem; }
 #ma06-app .hbar-track { height: 14px; background: var(--linen); border-radius: 3px; overflow: hidden; }
 #ma06-app .hbar-fill { height: 100%; background: var(--slate-blue); border-radius: 3px 0 0 3px; min-width: 2px; }
 #ma06-app .hbar-fill.jones { background: var(--independent-red); }
 #ma06-app .hbar-row .amt { font-variant-numeric: tabular-nums; text-align: right; min-width: 74px; white-space: nowrap; }
 #ma06-app .hbar-row .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 560px) { #ma06-app .hbar-row { grid-template-columns: 96px 1fr auto; } }
 
 /* ---- weekly timeline ---- */
-#ma06-app .week-chart { position: relative; }
-#ma06-app .timeline-chart { display: flex; align-items: flex-end; gap: 3px; height: 170px; padding: .5rem 0 0; border-bottom: 1px solid var(--hairline); }
+#ma06-app .timeline-legend { justify-content: center; }
+#ma06-app .week-chart { position: relative; display: grid; grid-template-columns: auto 1fr; column-gap: .4rem; }
+#ma06-app .timeline-axis { position: relative; height: 170px; width: 5.2rem; font-size: .72rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; padding-top: .5rem; }
+#ma06-app .timeline-axis span { position: absolute; right: .2rem; transform: translateY(50%); white-space: nowrap; }
+#ma06-app .timeline-plot { position: relative; }
+#ma06-app .timeline-grid { position: absolute; inset: .5rem 0 0 0; pointer-events: none; }
+#ma06-app .timeline-grid span { position: absolute; left: 0; right: 0; border-top: 1px dotted var(--hairline); }
+#ma06-app .timeline-chart { display: flex; align-items: flex-end; gap: 3px; height: 170px; padding: .5rem 0 0; border-bottom: 1px solid var(--hairline); position: relative; }
 #ma06-app .timeline-chart .bar-pair { flex: 1; display: flex; align-items: flex-end; gap: 1px; height: 100%; min-width: 6px; position: relative; }
-#ma06-app .timeline-chart .bar { flex: 1; border-radius: 2px 2px 0 0; min-height: 2px; }
+#ma06-app .timeline-chart .bar { flex: 1; border-radius: 2px 2px 0 0; min-height: 2px; border: 0; padding: 0; cursor: pointer; }
 #ma06-app .timeline-chart .bar.receipt { background: var(--slate-blue); }
 #ma06-app .timeline-chart .bar.disb { background: var(--harbor-black); }
 #ma06-app .timeline-chart .bar.raw { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.55) 0 3px, transparent 3px 6px); }
+#ma06-app .timeline-chart .bar:hover, #ma06-app .timeline-chart .bar:focus-visible, #ma06-app .timeline-chart .bar.selected { outline: 2px solid var(--independent-red); outline-offset: 1px; }
 #ma06-app .timeline-chart .bar-pair.deadline::before {
   content: ""; position: absolute; left: -2px; top: 0; bottom: -1px; border-left: 2px dashed var(--independent-red);
 }
 #ma06-app .timeline-chart .bar-pair.window { background: rgba(194,38,29,.07); }
-#ma06-app .timeline-labels { display: flex; gap: 3px; font-size: .62rem; color: var(--ink-soft); margin-top: .3rem; }
+#ma06-app .timeline-labels { display: flex; gap: 3px; font-size: .72rem; color: var(--ink-soft); margin-top: .3rem; }
 #ma06-app .timeline-labels span { flex: 1; text-align: center; min-width: 6px; }
-#ma06-app .deadline-list { font-size: .8rem; color: var(--ink-soft); text-align: left; padding-left: 1.1rem; margin: .8rem 0 0; }
+#ma06-app .timeline-readout { grid-column: 1 / -1; }
+#ma06-app .deadline-list { font-size: .9rem; color: var(--ink-soft); text-align: left; padding-left: 1.1rem; margin: .8rem 0 0; }
 #ma06-app .deadline-list li { margin-bottom: .2rem; }
 
 /* ---- tables ---- */
 #ma06-app .table-scroll { overflow: auto; max-height: 65vh; border: 1px solid var(--hairline); border-radius: var(--radius); }
-#ma06-app table { border-collapse: collapse; width: 100%; font-family: var(--sans); font-size: .82rem; min-width: 640px; }
+#ma06-app table { border-collapse: collapse; width: 100%; font-family: var(--sans); font-size: .9375rem; min-width: 640px; }
 #ma06-app thead th {
   position: sticky; top: 0; z-index: 5; background: var(--harbor-black); color: var(--shell-white); text-align: left;
-  padding: .55rem .7rem; font-weight: 600; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap;
+  padding: .55rem .7rem; font-weight: 600; font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap;
 }
 #ma06-app thead th.num, #ma06-app td.num { text-align: right; font-variant-numeric: tabular-nums; }
 #ma06-app .sort-btn {
@@ -268,17 +291,18 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
   padding: .55rem .7rem; margin: -.55rem -.7rem; text-align: inherit; text-transform: inherit; letter-spacing: inherit;
   cursor: pointer; user-select: none; min-height: 36px;
 }
-#ma06-app .sort-btn:hover { background: rgba(255,255,255,.08); }
+#ma06-app .sort-btn:hover, #ma06-app .sort-btn:focus-visible { background: rgba(255,255,255,.12); }
 #ma06-app th.num .sort-btn { text-align: right; }
 #ma06-app .sort-btn .arrow { opacity: .5; margin-left: .25rem; font-size: .65rem; }
 #ma06-app .sort-btn.sorted .arrow { opacity: 1; color: #f2a99f; }
 #ma06-app tbody td { padding: .5rem .7rem; border-top: 1px solid var(--hairline); white-space: nowrap; vertical-align: top; }
 #ma06-app tbody tr:nth-child(even) { background: rgba(0,0,0,.015); }
-#ma06-app tbody tr:hover { background: var(--linen); }
+#ma06-app tbody tr:hover, #ma06-app tbody tr:focus-within { background: var(--linen); }
 #ma06-app td.wrap-cell { white-space: normal; min-width: 160px; }
 #ma06-app tfoot td { padding: .5rem .7rem; border-top: 2px solid var(--harbor-black); font-weight: 700; background: var(--paper); }
+#ma06-app td.row-toggle, #ma06-app th.row-toggle { display: none; }
 #ma06-app .tag-pill {
-  display: inline-block; font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  display: inline-block; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
   padding: .1rem .4rem; border-radius: 999px; border: 1px solid var(--hairline); color: var(--ink-soft); white-space: nowrap;
 }
 #ma06-app .tag-pill.support { color: var(--positive); border-color: var(--positive); }
@@ -286,12 +310,187 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
 #ma06-app .tag-pill.raw { color: var(--amber); border-color: var(--amber); }
 #ma06-app .tag-pill.koh { color: var(--koh); border-color: var(--koh); }
 #ma06-app .tag-pill.jones { color: var(--jones); border-color: var(--jones); }
+#ma06-app .scroll-cue { font-size: .9rem; color: var(--ink-soft); margin: 0 0 .5rem; }
+#ma06-app .scroll-cue[hidden] { display: none; }
 
-/* Phone width: every data table reflows into labeled cards. Headers stay in
-   the DOM (sr-only) so assistive tech keeps real table semantics; the
-   data-label attribute supplies the visible label. */
-@media (max-width: 767px) {
-  #ma06-app table.card-table { min-width: 0; }
+/* ---- controls ---- */
+#ma06-app .controls { display: flex; flex-wrap: wrap; gap: .6rem; align-items: end; margin-bottom: 1rem; }
+#ma06-app .control { display: flex; flex-direction: column; gap: .25rem; font-size: .8rem; color: var(--ink-soft); flex: 1 1 200px; min-width: 0; max-width: 100%; }
+#ma06-app .control label { font-weight: 600; text-transform: uppercase; letter-spacing: .05em; font-size: .7rem; }
+#ma06-app .control input, #ma06-app .control select {
+  font-family: var(--sans); font-size: 1rem; padding: .4rem .55rem; border: 1px solid var(--hairline); border-radius: 4px;
+  background: #fff; color: var(--harbor-black); width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; min-height: var(--tap);
+}
+#ma06-app .btn {
+  font-family: var(--sans); font-size: .85rem; font-weight: 600; padding: .42rem .8rem; border-radius: 4px;
+  border: 1px solid var(--harbor-black); background: var(--harbor-black); color: var(--shell-white); cursor: pointer; min-height: var(--tap);
+}
+#ma06-app .btn:hover, #ma06-app .btn:focus-visible { background: var(--independent-red); border-color: var(--independent-red); }
+#ma06-app .btn.secondary { background: transparent; color: var(--harbor-black); }
+#ma06-app .btn.secondary:hover, #ma06-app .btn.secondary:focus-visible { background: var(--linen); color: var(--harbor-black); }
+#ma06-app .pill-tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem; }
+#ma06-app .pill-tabs button {
+  font-family: var(--sans); font-size: .85rem; font-weight: 600; padding: .35rem .9rem; border-radius: 999px;
+  border: 1px solid var(--hairline); background: #fff; color: var(--harbor-black); cursor: pointer; min-height: var(--tap);
+}
+#ma06-app .pill-tabs button.active { background: var(--independent-red); border-color: var(--independent-red); color: #fff; }
+
+/* ---- U.S. map ---- */
+#ma06-app .us-map-layout { display: grid; gap: 1rem; align-items: start; }
+#ma06-app .us-map-wrap { position: relative; }
+#ma06-app .us-map { display: block; width: 100%; height: auto; }
+#ma06-app .us-state { stroke: var(--shell-white); stroke-width: 1; cursor: pointer; }
+#ma06-app .us-state:hover { filter: brightness(0.88); }
+#ma06-app .us-state-home { stroke: var(--harbor-black); stroke-width: 1.5; }
+#ma06-app .us-state:focus-visible { outline: 2px solid var(--harbor-black); outline-offset: 1px; }
+#ma06-app .us-state.selected { stroke: var(--harbor-black); stroke-width: 2.5; }
+#ma06-app .us-map-tip {
+  position: absolute; pointer-events: none; background: var(--harbor-black); color: var(--shell-white); font-size: .85rem;
+  padding: .3rem .55rem; border-radius: 4px; white-space: nowrap; transform: translate(-50%, calc(-100% - 10px)); z-index: 4;
+}
+#ma06-app .us-map-tip[hidden] { display: none; }
+#ma06-app .us-map-side { text-align: left; }
+#ma06-app .us-map-detail {
+  text-align: left; font-weight: 600; font-size: 1rem; margin: 0 0 .6rem; background: var(--paper); border: 1px solid var(--hairline);
+  border-radius: var(--radius); padding: .65rem .8rem; min-height: 3.2em;
+}
+#ma06-app .us-map-inset { border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--paper); padding: .35rem; }
+#ma06-app .us-map-inset .inset-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); font-weight: 700; margin: .1rem 0 .25rem; }
+#ma06-app .us-map-small { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
+#ma06-app .us-map-small button {
+  font-family: var(--sans); font-size: .85rem; font-weight: 700; min-width: var(--tap); min-height: var(--tap); padding: 0 .6rem;
+  border: 1px solid var(--hairline); border-radius: 6px; background: #fff; color: var(--harbor-black); cursor: pointer;
+}
+#ma06-app .us-map-small button.selected { border-color: var(--harbor-black); box-shadow: inset 0 0 0 1px var(--harbor-black); }
+#ma06-app .us-map-legend { display: flex; align-items: center; gap: .25rem; max-width: 720px; margin: .6rem auto 0; font-size: .8rem; color: var(--ink-soft); flex-wrap: wrap; }
+#ma06-app .us-map-swatch { width: 18px; height: 10px; border: 1px solid var(--hairline); }
+
+#ma06-app .two-col { display: grid; gap: 1.6rem; }
+#ma06-app .callout {
+  background: var(--paper); border-left: 3px solid var(--independent-red); border-radius: 0 var(--radius) var(--radius) 0;
+  padding: .8rem 1rem; font-size: .95rem; text-align: left; max-width: 48rem; margin: 0 auto 1rem;
+}
+#ma06-app .empty-state, #ma06-app .loading-state { text-align: center; padding: 2.2rem 1rem; color: var(--ink-soft); font-size: .95rem; }
+#ma06-app .count-note { font-size: .9rem; color: var(--ink-soft); margin: 0 0 .6rem; text-align: left; }
+
+/* ---- methodology ---- */
+#ma06-app .methodology dl { text-align: left; margin: 1.2rem auto 0; max-width: 48rem; }
+#ma06-app .methodology dt { font-family: var(--serif); font-weight: 700; margin-top: 1rem; }
+#ma06-app .methodology dd { margin: .15rem 0 0; color: var(--ink-soft); font-size: 1rem; }
+#ma06-app .methodology dd + dt { margin-top: 1.1rem; }
+#ma06-app .method-list { text-align: left; margin: 1rem auto 0; max-width: 48rem; }
+#ma06-app .method-item { border-top: 1px solid var(--hairline); }
+#ma06-app .method-item:last-child { border-bottom: 1px solid var(--hairline); }
+#ma06-app .method-item summary {
+  cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: .6rem;
+  font-family: var(--serif); font-weight: 700; padding: .8rem .2rem; min-height: var(--tap);
+}
+#ma06-app .method-item summary::-webkit-details-marker { display: none; }
+#ma06-app .method-item summary::after { content: "+"; font-family: var(--sans); font-size: 1.3rem; line-height: 1; color: var(--slate-blue); flex: none; }
+#ma06-app .method-item[open] summary::after { content: "–"; }
+#ma06-app .method-item p { color: var(--ink-soft); font-size: 1rem; margin: 0 .2rem .9rem; }
+#ma06-app .methodology .town-list { font-size: .9rem; color: var(--ink-soft); }
+
+#ma06-app footer.sitefoot { padding: 1.6rem var(--pad) 3rem; font-size: .85rem; color: var(--ink-soft); text-align: center; }
+#ma06-app footer.sitefoot p { overflow-wrap: anywhere; }
+
+#ma06-app .skip-link { position: absolute; left: -999px; top: .5rem; z-index: 100; background: var(--harbor-black); color: #fff; padding: .5rem .8rem; border-radius: 4px; }
+#ma06-app .skip-link:focus { left: var(--pad); }
+#ma06-app .hidden { display: none !important; }
+
+/* ==========================================================================
+   2. DESKTOP VERSION, 769 px and wider
+   ========================================================================== */
+@media (min-width: 769px) {
+  /* every section link stays visible: the row wraps on narrower desktops instead of clipping or scrolling */
+  #ma06-app .sectionnav .wrap { justify-content: center; flex-wrap: wrap; row-gap: .15rem; }
+  #ma06-app .sectionnav-links { flex: 1 1 0; min-width: 0; flex-wrap: wrap; justify-content: center; gap: .15rem; }
+  #ma06-app .sectionnav a { font-size: .7rem; letter-spacing: .02em; padding: .35rem .45rem; }
+  #ma06-app .sectionnav a.nav-home { margin-right: .3rem; padding-right: .6rem; padding-left: 0; }
+  #ma06-app .metric-grid { grid-template-columns: repeat(2, 1fr); }
+  #ma06-app .pair { grid-template-columns: 1fr 1fr; }
+  #ma06-app .two-col { grid-template-columns: 1.1fr .9fr; }
+  #ma06-app .us-map-layout { grid-template-columns: minmax(0, 1fr) 280px; }
+  #ma06-app .us-map-small { display: none; }        /* desktop selects small states through the inset */
+  #ma06-app .snapshot-table { display: none; }
+  #ma06-app table.mobile-only { display: none; }
+  #ma06-app .timeline-pair { grid-template-columns: 1fr; }
+  #ma06-app .method-item p, #ma06-app .method-item summary { pointer-events: auto; }
+}
+@media (min-width: 769px) and (max-width: 1024px) {
+  #ma06-app { --pad: 24px; --nav-h: 132px; }   /* the link bar wraps to three rows here */
+}
+@media (min-width: 1025px) and (max-width: 1279px) {
+  #ma06-app { --nav-h: 94px; }                 /* two rows */
+}
+@media (min-width: 1025px) {
+  #ma06-app .metric-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (min-width: 1280px) {
+  #ma06-app .metric-grid { grid-template-columns: repeat(4, 1fr); }
+  /* six tiles in four columns: the last two widen so the second row has no empty cells */
+  #ma06-app .metric-grid .metric-tile:nth-child(4n + 5):nth-last-child(2), #ma06-app .metric-grid .metric-tile:nth-child(4n + 6):last-child { grid-column: span 2; }
+  #ma06-app .timeline-pair { grid-template-columns: 1fr 1fr; }
+}
+
+/* ==========================================================================
+   3. MOBILE VERSION, 768 px and narrower: one column, 16 px gutters,
+   16 px inputs, 44 px tap targets, no horizontal page scroll.
+   ========================================================================== */
+@media (max-width: 768px) {
+  #ma06-app { --pad: 16px; --nav-h: 56px; }
+  #ma06-app .wrap { padding-inline: max(var(--pad), env(safe-area-inset-left)) max(var(--pad), env(safe-area-inset-right)); }
+  #ma06-app h1 { font-size: clamp(1.55rem, 6.5vw, 2rem); }
+  #ma06-app h2 { font-size: clamp(1.3rem, 5.4vw, 1.55rem); }
+  #ma06-app .dek { font-size: 1.05rem; }
+  #ma06-app .masthead-logo img { max-width: 100%; }
+  #ma06-app .meta-line { flex-direction: column; align-items: center; gap: .25rem; font-size: .95rem; }
+  #ma06-app .masthead-photo-pair .pair { gap: .5rem; }
+
+  /* nav: the home link and a full-width jump menu; the link bar is not shown */
+  #ma06-app .sectionnav-links { display: none; }
+  #ma06-app .sectionnav .wrap { gap: .6rem; padding-block: .3rem; min-height: 0; }
+  #ma06-app .sectionnav a.nav-home { margin-right: 0; padding: .4rem .5rem .4rem 0; min-height: var(--tap); font-size: .72rem; }
+  #ma06-app .sectionnav-jump { display: block; flex: 1; min-width: 0; }
+  #ma06-app .sectionnav-jump select {
+    width: 100%; font-family: var(--sans); font-size: 1rem; padding: .5rem .6rem; border: 1px solid var(--hairline);
+    border-radius: 6px; background: #fff; color: var(--harbor-black); min-height: var(--tap);
+  }
+
+  /* overview */
+  #ma06-app .metric-grid { grid-template-columns: 1fr; }
+  #ma06-app .h2h .value { font-size: 1.3rem; }
+  #ma06-app .card-grid { display: block; max-width: none; }   /* hosts the comparison table on phones */
+  #ma06-app .snapshot-table { display: table; }
+  #ma06-app .support-card { margin-inline: 0; }
+
+  /* pairs stack, Koh above Jones */
+  #ma06-app .pair, #ma06-app .two-col, #ma06-app .timeline-pair { grid-template-columns: 1fr; }
+  #ma06-app .stack-legend { gap: .4rem .8rem; }
+  #ma06-app .stack-legend .item { align-items: flex-start; }
+  #ma06-app .stack-legend .swatch { margin-top: .35rem; }
+
+  /* ranked lists: label and amount on one line, the bar beneath; labels wrap */
+  #ma06-app .hbar-row { grid-template-columns: 1fr auto; grid-template-areas: "lbl amt" "bar bar"; row-gap: .25rem; margin-bottom: .6rem; }
+  #ma06-app .hbar-row .lbl { grid-area: lbl; white-space: normal; overflow: visible; text-overflow: clip; }
+  #ma06-app .hbar-row .amt { grid-area: amt; min-width: 0; }
+  #ma06-app .hbar-row .hbar-track { grid-area: bar; }
+
+  /* tap targets: inline prose links get a taller hit area without moving the text;
+     stacked-bar segments are 44 px tall; a timeline week is one tall target */
+  #ma06-app p a:not(.btn), #ma06-app td a:not(.btn), #ma06-app li a, #ma06-app .sub a, #ma06-app figcaption a, #ma06-app .meta-line a { padding-block: .85rem; margin-block: -.85rem; }
+  #ma06-app .stack-bar { height: 46px; }   /* 44 px segments inside the 1 px border */
+  #ma06-app .timeline-chart .bar-pair { cursor: pointer; }
+  #ma06-app .timeline-chart .bar-pair.selected { outline: 2px solid var(--independent-red); outline-offset: 0; }
+  #ma06-app .h2h .sub, #ma06-app .candidate-card .card-note, #ma06-app .snapshot-note, #ma06-app .count-note { font-size: .95rem; }
+
+  /* controls stack full width */
+  #ma06-app .controls { flex-direction: column; align-items: stretch; }
+  #ma06-app .control { flex: 1 1 auto; }
+
+  /* tables: card rows by default, with headers kept in the DOM (sr-only) */
+  #ma06-app .table-scroll { max-height: none; overflow-x: hidden; border: 0; }
+  #ma06-app table.card-table { min-width: 0; font-size: 1rem; }
   #ma06-app table.card-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
   #ma06-app table.card-table, #ma06-app table.card-table tbody, #ma06-app table.card-table tfoot,
   #ma06-app table.card-table tr, #ma06-app table.card-table td { display: block; width: 100%; }
@@ -299,79 +498,63 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
     border: 1px solid var(--hairline); border-radius: var(--radius); margin-bottom: .8rem; padding: .6rem .8rem; background: var(--paper);
   }
   #ma06-app table.card-table td {
-    display: flex; justify-content: space-between; gap: 1rem; padding: .3rem 0; border-top: 1px solid var(--hairline);
-    white-space: normal; text-align: right; min-width: 0;
+    display: flex; justify-content: space-between; gap: 1rem; padding: .4rem 0; border-top: 1px solid var(--hairline);
+    white-space: normal; text-align: right; min-width: 0; overflow-wrap: anywhere;
   }
-  #ma06-app table.card-table td:first-child { border-top: 0; font-family: var(--serif); font-weight: 700; font-size: 1rem; justify-content: flex-start; text-align: left; }
+  #ma06-app table.card-table td:first-child { border-top: 0; font-family: var(--serif); font-weight: 700; font-size: 1.05rem; justify-content: flex-start; text-align: left; }
   #ma06-app table.card-table td::before {
-    content: attr(data-label); color: var(--ink-soft); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; text-align: left; flex: none;
+    content: attr(data-label); color: var(--ink-soft); font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; text-align: left; flex: none; padding-top: .15rem;
   }
   #ma06-app table.card-table td:first-child::before { content: none; }
+  #ma06-app table.card-table td a { min-height: var(--tap); display: inline-flex; align-items: center; }
   #ma06-app table.card-table tfoot td { border-top: 1px solid var(--hairline); }
-  #ma06-app .table-scroll { max-height: none; overflow-x: hidden; border: 0; }
+  /* priority columns with expand: secondary cells hide until the row's button opens them */
+  #ma06-app table.card-table.expand-rows td.secondary { display: none; }
+  #ma06-app table.card-table.expand-rows tr.expanded td.secondary { display: flex; }
+  #ma06-app table.card-table.expand-rows td.row-toggle { display: block; border-top: 0; padding: .3rem 0 0; }
+  #ma06-app table.card-table.expand-rows td.row-toggle::before { content: none; }
+  #ma06-app .row-more {
+    font-family: var(--sans); font-size: .9rem; font-weight: 600; color: var(--slate-blue); background: transparent; border: 0;
+    padding: 0; min-height: var(--tap); width: 100%; text-align: left; cursor: pointer;
+  }
+  /* horizontal scroll with a sticky first column, only where comparing across columns is the point */
+  #ma06-app .table-scroll.scroll-x { overflow-x: auto; border: 1px solid var(--hairline); -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+  #ma06-app table.scroll-table { min-width: 0; width: max-content; min-width: 100%; font-size: .9375rem; }
+  #ma06-app table.scroll-table th, #ma06-app table.scroll-table td { padding-inline: .5rem; }
+  #ma06-app table.scroll-table th:first-child, #ma06-app table.scroll-table td:first-child {
+    position: sticky; left: 0; z-index: 6; background: var(--paper); box-shadow: 1px 0 0 var(--hairline);
+    max-width: 128px; white-space: normal; overflow-wrap: anywhere;
+  }
+  #ma06-app table.scroll-table thead th:first-child { z-index: 7; background: var(--harbor-black); }
+  #ma06-app table.scroll-table thead th { position: sticky; top: 0; }
+  #ma06-app table.scroll-table tfoot td:first-child { background: var(--paper); }
+
+  /* map: readout directly below the map, then the inset and the small-state buttons */
+  #ma06-app .us-map-layout { grid-template-columns: 1fr; }
+  #ma06-app .us-map-wrap { max-width: none; }
+  #ma06-app .us-map-tip { display: none !important; }
+  #ma06-app .us-state:hover { filter: none; }
+
+  /* timeline: stacked, wider hatching, fewer ticks (set by the script) */
+  #ma06-app .timeline-chart { height: 150px; }
+  #ma06-app .timeline-axis { height: 150px; width: 4.6rem; font-size: .7rem; }
+  #ma06-app .timeline-chart .bar.raw { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.6) 0 4px, transparent 4px 9px); }
+  #ma06-app .timeline-labels { font-size: .7rem; }
+  #ma06-app .timeline-labels span.thin { visibility: hidden; }
+
+  /* methodology: collapsible subsections */
+  #ma06-app .methodology dl { display: none; }
+
+  #ma06-app footer.sitefoot { padding-bottom: calc(3rem + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-width: 360px) {
+  #ma06-app .h2h { gap: .5rem; }
+  #ma06-app .h2h .value { font-size: 1.15rem; }
 }
 
-/* ---- controls ---- */
-#ma06-app .controls { display: flex; flex-wrap: wrap; gap: .6rem; align-items: end; margin-bottom: 1rem; }
-#ma06-app .control { display: flex; flex-direction: column; gap: .25rem; font-size: .76rem; color: var(--ink-soft); flex: 1 1 140px; min-width: 0; max-width: 100%; }
-#ma06-app .control label { font-weight: 600; text-transform: uppercase; letter-spacing: .05em; font-size: .68rem; }
-#ma06-app .control input, #ma06-app .control select {
-  font-family: var(--sans); font-size: .85rem; padding: .4rem .55rem; border: 1px solid var(--hairline); border-radius: 4px;
-  background: #fff; color: var(--harbor-black); width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; min-height: 40px;
+/* Short viewports (a phone held sideways lands in the desktop version by
+   width): the nav stops being sticky so it never takes a third of the screen. */
+@media (max-height: 520px) {
+  #ma06-app .sectionnav { position: static; }
+  #ma06-app section.panel, #ma06-app .method-item { scroll-margin-top: 12px; }
 }
-#ma06-app .btn {
-  font-family: var(--sans); font-size: .78rem; font-weight: 600; padding: .42rem .8rem; border-radius: 4px;
-  border: 1px solid var(--harbor-black); background: var(--harbor-black); color: var(--shell-white); cursor: pointer; min-height: 40px;
-}
-#ma06-app .btn:hover { background: var(--independent-red); border-color: var(--independent-red); }
-#ma06-app .btn.secondary { background: transparent; color: var(--harbor-black); }
-#ma06-app .btn.secondary:hover { background: var(--linen); color: var(--harbor-black); }
-#ma06-app .pill-tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem; }
-#ma06-app .pill-tabs button {
-  font-family: var(--sans); font-size: .78rem; font-weight: 600; padding: .35rem .75rem; border-radius: 999px;
-  border: 1px solid var(--hairline); background: #fff; color: var(--harbor-black); cursor: pointer; min-height: 40px;
-}
-#ma06-app .pill-tabs button.active { background: var(--independent-red); border-color: var(--independent-red); color: #fff; }
-
-/* ---- U.S. map ---- */
-#ma06-app .us-map-wrap { text-align: left; max-width: 720px; margin: 0 auto; }
-#ma06-app .us-map { display: block; width: 100%; height: auto; }
-#ma06-app .us-state { stroke: var(--shell-white); stroke-width: 1; }
-#ma06-app .us-state:hover { filter: brightness(0.88); }
-#ma06-app .us-state-home { stroke: var(--harbor-black); stroke-width: 1.5; }
-#ma06-app .us-state:focus-visible { outline: 2px solid var(--harbor-black); outline-offset: 1px; }
-#ma06-app .us-map-legend { display: flex; align-items: center; gap: .25rem; max-width: 720px; margin: .6rem auto 0; font-size: .68rem; color: var(--ink-soft); flex-wrap: wrap; }
-#ma06-app .us-map-swatch { width: 18px; height: 10px; border: 1px solid var(--hairline); }
-#ma06-app .us-map-detail { text-align: center; font-weight: 600; font-size: .88rem; min-height: 1.4em; margin: .6rem 0 0; }
-
-/* ---- late money notice cards ---- */
-
-#ma06-app .two-col { display: grid; grid-template-columns: 1.1fr .9fr; gap: 1.6rem; }
-@media (max-width: 820px) { #ma06-app .two-col { grid-template-columns: 1fr; } }
-#ma06-app .callout {
-  background: var(--paper); border-left: 3px solid var(--independent-red); border-radius: 0 var(--radius) var(--radius) 0;
-  padding: .8rem 1rem; font-size: .86rem; text-align: left; max-width: 48rem; margin: 0 auto 1rem;
-}
-#ma06-app .empty-state, #ma06-app .loading-state { text-align: center; padding: 2.2rem 1rem; color: var(--ink-soft); font-size: .88rem; }
-#ma06-app .count-note { font-size: .8rem; color: var(--ink-soft); margin: 0 0 .6rem; text-align: left; }
-
-/* ---- methodology ---- */
-#ma06-app .methodology dl { text-align: left; margin: 1.2rem auto 0; max-width: 48rem; }
-#ma06-app .methodology dt { font-family: var(--serif); font-weight: 700; margin-top: 1rem; }
-#ma06-app .methodology dd { margin: .15rem 0 0; color: var(--ink-soft); font-size: .9rem; }
-#ma06-app .methodology dd + dt { margin-top: 1.1rem; }
-#ma06-app .methodology details { text-align: center; }
-#ma06-app .methodology summary { cursor: pointer; list-style: none; display: block; padding: .2rem 0 .6rem; border-radius: var(--radius); }
-#ma06-app .methodology summary::-webkit-details-marker { display: none; }
-#ma06-app .methodology summary::after {
-  content: "Show the full methodology ▾"; display: inline-block; margin-top: .5rem; font-size: .78rem; font-weight: 600; color: var(--slate-blue);
-}
-#ma06-app .methodology details[open] summary::after { content: "Hide the full methodology ▴"; }
-#ma06-app .methodology summary h2, #ma06-app .methodology summary p.panel-note { pointer-events: none; }
-#ma06-app .methodology .town-list { font-size: .82rem; color: var(--ink-soft); }
-
-#ma06-app footer.sitefoot { padding: 1.6rem var(--pad) 3rem; font-size: .76rem; color: var(--ink-soft); text-align: center; }
-
-#ma06-app .skip-link { position: absolute; left: -999px; top: .5rem; z-index: 100; background: var(--harbor-black); color: #fff; padding: .5rem .8rem; border-radius: 4px; }
-#ma06-app .skip-link:focus { left: var(--pad); }
-#ma06-app .hidden { display: none !important; }
