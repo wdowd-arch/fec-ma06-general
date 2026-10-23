@@ -418,10 +418,10 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
   #ma06-app .method-item p, #ma06-app .method-item summary { pointer-events: auto; }
 }
 @media (min-width: 769px) and (max-width: 1024px) {
-  #ma06-app { --pad: 24px; --nav-h: 132px; }   /* the link bar wraps to three rows here */
+  #ma06-app { --pad: 24px; --nav-h: 94px; }    /* the link bar wraps to two rows here */
 }
-@media (min-width: 1025px) and (max-width: 1279px) {
-  #ma06-app { --nav-h: 94px; }                 /* two rows */
+@media (min-width: 1025px) and (max-width: 1179px) {
+  #ma06-app { --nav-h: 94px; }                 /* two rows; one row from 1,180 px */
 }
 @media (min-width: 1025px) {
   #ma06-app .metric-grid { grid-template-columns: repeat(3, 1fr); }
