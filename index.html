@@ -153,9 +153,21 @@
         <p class="panel-note" id="late-note"></p>
       </div>
       <div id="late-summary" class="pair"></div>
-      <h3 class="subhead">48-hour notices of contributions, newest first</h3>
+      <h3 class="subhead">Contributions reported on 48-hour notices</h3>
+      <div class="controls">
+        <div class="control">
+          <label for="late-48-search">Contributor, city or employer</label>
+          <input id="late-48-search" type="search" placeholder="Type a name…" autocomplete="off">
+        </div>
+        <div class="control">
+          <label for="late-48-candidate">Candidate</label>
+          <select id="late-48-candidate"><option value="__all__">Both candidates</option></select>
+        </div>
+      </div>
       <p class="count-note" id="late-48-count" aria-live="polite" aria-atomic="true"></p>
-      <div id="late-48" class="notice-list"></div>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Contributions reported on 48-hour notices, scrollable">
+        <table id="late-48" class="card-table"><thead></thead><tbody></tbody></table>
+      </div>
       <h3 class="subhead">24-hour independent expenditure reports, newest first</h3>
       <p class="count-note" id="late-24-count" aria-live="polite" aria-atomic="true"></p>
       <div class="table-scroll" tabindex="0" role="region" aria-label="24-hour independent expenditure reports, scrollable">
