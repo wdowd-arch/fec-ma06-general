@@ -52,6 +52,9 @@ HEAD = """<!-- MA-06 general election campaign finance dashboard: Ghost HTML car
     "us-states-paths.json": MA06_FILES["us-states-paths.json"] || MA06_BASE + "us-states-paths.json"
   }};
   (function () {{
+    // Viewport width without the scrollbar, for the full-width rule in styles.css.
+    var setVw = function () {{ document.documentElement.style.setProperty("--ma06-vw", document.documentElement.clientWidth + "px"); }};
+    setVw(); window.addEventListener("resize", setVw);
     if (MA06_FILES.styles === "inline") return;
     var link = document.createElement("link");
     link.rel = "stylesheet";

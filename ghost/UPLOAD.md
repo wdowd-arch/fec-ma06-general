@@ -26,11 +26,13 @@ export GHOST_ADMIN_URL=https://www.marbleheadindependent.com
 python3 tools/publish_ghost.py --setup
 ```
 
-Ghost stores uploads at `/content/files/<year>/<month>/<name>` (images under
-`/content/images/`) and renames a repeat upload (`dashboard-2.json`), so the script records
-each file's exact URL in `ghost/manifest.json`, regenerates `ghost/embed.html` from it, and
-writes the card to the page. The embed's top block holds those URLs; nothing else needs the
-folder layout.
+Ghost(Pro) stores uploads on `storage.ghost.io` under `/content/files/<year>/<month>/<name>`
+(images under `/content/images/`) and renames a repeat upload (`dashboard-2.json`), so the
+script records each file's exact URL in `ghost/manifest.json`, regenerates `ghost/embed.html`
+from it, and writes the card to the page. The embed's top block holds those URLs; nothing else
+needs the folder layout. Ghost serves uploaded `.css` and `.js` as plain text, which browsers
+refuse for a stylesheet, so `styles.css` and `app.js` are carried inside the card itself
+rather than uploaded.
 
 If you prefer to upload by hand, the seven files are:
 
@@ -99,8 +101,9 @@ edited headline), `--dry-run` makes no uploads and no page write.
 Commit `ghost/manifest.json`, `ghost/embed.html` and the two data files afterward so the
 repository matches the site.
 
-If `index.html`, `app.js` or `styles.css` changed, run `python3 tools/publish_ghost.py --setup`
-again; it re-uploads everything and rewrites the card.
+If `index.html`, `app.js` or `styles.css` changed, run
+`python3 tools/publish_ghost.py --card-only`; it regenerates the card (which carries the CSS
+and JS) and updates the page without re-uploading anything.
 
 ## Schedule
 

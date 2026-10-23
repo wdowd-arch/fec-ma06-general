@@ -2,14 +2,12 @@
  "base": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/files/2026/10/",
  "files": {
   "styles": {
-   "url": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/files/2026/10/styles.css",
-   "sha256": "facd2ec9c613b7fb3f8ff7e05c2417850a8d235161c5de88eebc75694c9dc997",
-   "uploaded_at": "2026-10-23T20:33:58Z"
+   "inline": true,
+   "sha256": "5785c6897f566faee7ec2774a11e5f7debf5decca38f88212c9e4dd9b1d08cf4"
   },
   "script": {
-   "url": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/files/2026/10/app.js",
-   "sha256": "8ba87fd14a019e3f30e9a76ede8aeee4725d789ed7e676e4bc9a6dfc3fb9fd4d",
-   "uploaded_at": "2026-10-23T20:33:59Z"
+   "inline": true,
+   "sha256": "8ba87fd14a019e3f30e9a76ede8aeee4725d789ed7e676e4bc9a6dfc3fb9fd4d"
   },
   "dashboard.json": {
    "url": "https://storage.ghost.io/c/82/50/8250a7a1-4ec7-4a51-98ae-9e11015b28ac/content/files/2026/10/dashboard.json",

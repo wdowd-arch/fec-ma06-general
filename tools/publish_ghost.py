@@ -15,7 +15,7 @@ What it does, in order:
   2. Uploads data/dashboard.json and data/build_log.json through the Ghost
      Admin API (and data/copy.json when its content changed since the last
      upload). Ghost renames a repeat upload, so the new URLs are recorded in
-     ghost/manifest.json.
+     ghost/manifest.json. styles.css and app.js travel inside the card.
   3. Regenerates ghost/embed.html from the manifest and updates the HTML
      card on the page with slug ma-06-general, keeping its draft or
      published status.
@@ -25,8 +25,9 @@ First-time setup uploads every file and creates the page as a draft:
 
     python3 tools/publish_ghost.py --setup
 
-Options: --no-build (skip step 1), --dry-run (no uploads, no page write),
---publish (set the page live; by default a draft stays a draft).
+Options: --no-build (skip step 1), --card-only (no build, no uploads; just
+rewrite the card after a page-code change), --dry-run (no uploads, no page
+write), --publish (set the page live; by default a draft stays a draft).
 """
 import argparse
 import base64
@@ -50,8 +51,12 @@ META_TITLE = "MA-06 general election money — The Marblehead Independent"
 META_DESCRIPTION = ("Dan Koh and Micah Jones head to head on receipts, spending, outside money, late contributions and "
                     "donor geography in the Nov. 3, 2026, general election for Massachusetts' 6th Congressional District, "
                     "built from Federal Election Commission filings.")
+# styles.css and app.js are carried inside the card: Ghost's storage serves
+# uploaded .css and .js as text/plain, which browsers refuse for a
+# cross-origin stylesheet. The manifest marks them "inline".
+INLINE_FILES = {"styles": "styles.css", "script": "app.js"}
 ALL_FILES = {
-    "styles": "styles.css", "script": "app.js", "dashboard.json": "data/dashboard.json",
+    "dashboard.json": "data/dashboard.json",
     "build_log.json": "data/build_log.json", "copy.json": "data/copy.json",
     "us-states-paths.json": "data/us-states-paths.json",
     # Images are keyed by file name so the embed can resolve src and srcset entries.
@@ -60,7 +65,7 @@ ALL_FILES = {
     "koh.jpg": "assets/images/koh.jpg", "koh-480.jpg": "assets/images/koh-480.jpg",
     "jones.jpg": "assets/images/jones.jpg", "jones-480.jpg": "assets/images/jones-480.jpg",
 }
-INLINE_IF_REFUSED = {"styles", "script"}
+INLINE_IF_REFUSED = set()
 DAILY_FILES = ["dashboard.json", "build_log.json"]
 
 
@@ -172,8 +177,11 @@ def main():
     ap.add_argument("--no-build", action="store_true", help="skip build_data.py and spot_check.py")
     ap.add_argument("--dry-run", action="store_true", help="no uploads, no page write")
     ap.add_argument("--publish", action="store_true", help="set the page status to published")
+    ap.add_argument("--card-only", action="store_true", help="no build, no uploads: regenerate the card from the manifest and update the page")
     args = ap.parse_args()
 
+    if args.card_only:
+        args.no_build = True
     fec_key = os.environ.get("FEC_API_KEY", "").strip()
     ghost_key = os.environ.get("GHOST_ADMIN_API_KEY", "").strip()
     site = os.environ.get("GHOST_ADMIN_URL", "").strip()
@@ -197,9 +205,13 @@ def main():
 
     # 2. uploads
     todo = list(ALL_FILES) if args.setup else list(DAILY_FILES)
+    if args.card_only:
+        todo = []
     copy_path = os.path.join(ROOT, ALL_FILES["copy.json"])
-    if not args.setup and manifest["files"].get("copy.json", {}).get("sha256") != sha(copy_path):
+    if not args.setup and not args.card_only and manifest["files"].get("copy.json", {}).get("sha256") != sha(copy_path):
         todo.append("copy.json")
+    for key, rel in INLINE_FILES.items():
+        manifest["files"][key] = {"inline": True, "sha256": sha(os.path.join(ROOT, rel))}
     for key in todo:
         local = os.path.join(ROOT, ALL_FILES[key])
         try:
@@ -212,7 +224,7 @@ def main():
             raise
         manifest["files"][key] = {"url": url, "sha256": sha(local), "uploaded_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
         print(f"uploaded {ALL_FILES[key]} -> {url}")
-    missing = [k for k in ALL_FILES if k not in manifest["files"]]
+    missing = [k for k in ALL_FILES if k not in manifest["files"] or not manifest["files"][k].get("url")]
     if missing:
         sys.exit(f"manifest has no URL for {', '.join(missing)}; run with --setup once")
     if manifest["files"].get("dashboard.json", {}).get("url"):
@@ -236,7 +248,7 @@ def main():
         print(f"page saved as {status}; preview: {site}/p/{page.get('uuid')}/")
 
     # 4. key scan
-    hits = scan_for_keys([MANIFEST, EMBED, os.path.join(ROOT, "data", "dashboard.json"), os.path.join(ROOT, "data", "build_log.json")],
+    hits = scan_for_keys([MANIFEST, EMBED, os.path.join(ROOT, "data", "dashboard.json"), os.path.join(ROOT, "data", "build_log.json")] if not args.dry_run else [EMBED],
                          [fec_key, ghost_key, ghost_key.split(":")[-1] if ghost_key else ""])
     if hits:
         for h in hits:

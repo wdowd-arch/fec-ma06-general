@@ -64,6 +64,15 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
   text-align: center;
   overflow-x: clip;
 }
+/* Embedded in a Ghost page (no body.ma06-page), the theme's content column
+   is a narrow centered flex container that would size the dashboard to its
+   widest content. Span the viewport instead; --ma06-vw is the viewport width
+   minus any scrollbar, set by the card's script, so nothing scrolls sideways. */
+body:not(.ma06-page) #ma06-app {
+  width: var(--ma06-vw, 100vw); max-width: var(--ma06-vw, 100vw);
+  margin-left: calc(50% - var(--ma06-vw, 100vw) / 2); margin-right: calc(50% - var(--ma06-vw, 100vw) / 2);
+  flex: 0 0 auto; align-self: center;
+}
 #ma06-app *, #ma06-app *::before, #ma06-app *::after { box-sizing: border-box; }
 #ma06-app img, #ma06-app svg { max-width: 100%; }
 
