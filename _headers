@@ -1,0 +1,12 @@
+# Cloudflare Pages response headers.
+# The data files change daily, so browsers and the edge keep them for 10 minutes;
+# everything else (page, styles, script, map paths, nameplate) can be cached longer.
+/data/dashboard.json
+  Cache-Control: public, max-age=600, must-revalidate
+/data/build_log.json
+  Cache-Control: public, max-age=600, must-revalidate
+/data/copy.json
+  Cache-Control: public, max-age=600, must-revalidate
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin

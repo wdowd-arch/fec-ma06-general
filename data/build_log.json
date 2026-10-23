@@ -1,5 +1,5 @@
 {
- "started_at": "2026-10-22T20:47:50.906144+00:00",
+ "started_at": "2026-10-22T23:39:30.939040+00:00",
  "mode": "live",
  "api_base": "https://api.open.fec.gov/v1",
  "cycle": 2026,
@@ -12,9 +12,9 @@
   "/efile/reports/house-senate/": 2,
   "/filings/": 2,
   "/schedules/schedule_a/": 139,
-  "/schedules/schedule_a/efile/": 9,
+  "/schedules/schedule_a/efile/": 13,
   "/schedules/schedule_b/": 16,
-  "/schedules/schedule_b/efile/": 5,
+  "/schedules/schedule_b/efile/": 6,
   "/schedules/schedule_e/": 2,
   "/schedules/schedule_e/efile/": 2,
   "/schedules/schedule_f/": 2,
@@ -27,8 +27,8 @@
   "https://www.fec.gov/help-candidates-and-committees/candidate-taking-receipts/contribution-limits": 1
  },
  "warnings": [],
- "requests": 127,
- "cache_hits": 65,
+ "requests": 197,
+ "cache_hits": 0,
  "rate_limit_pauses": 0,
  "backoffs": 0,
  "amendments_excluded": {
@@ -39,8 +39,8 @@
   "jones_f6": 1
  },
  "ie_duplicate_rows_dropped": 72,
- "finished_at": "2026-10-22T20:50:59.716854+00:00",
- "run_seconds": 188.8,
+ "finished_at": "2026-10-22T23:45:10.310393+00:00",
+ "run_seconds": 339.4,
  "record_counts": {
   "koh": {
    "schedule_a_rows": 6859,
@@ -48,8 +48,8 @@
    "individual_rows": 3241,
    "schedule_b_rows": 1072,
    "schedule_b_memo_rows": 398,
-   "raw_schedule_a_rows": 685,
-   "raw_schedule_b_rows": 233
+   "raw_schedule_a_rows": 944,
+   "raw_schedule_b_rows": 262
   },
   "jones": {
    "schedule_a_rows": 473,
@@ -57,8 +57,8 @@
    "individual_rows": 390,
    "schedule_b_rows": 403,
    "schedule_b_memo_rows": 28,
-   "raw_schedule_a_rows": 177,
-   "raw_schedule_b_rows": 147
+   "raw_schedule_a_rows": 214,
+   "raw_schedule_b_rows": 202
   },
   "independent_expenditures": 26,
   "notices_48h": 6,
@@ -93,7 +93,7 @@
  "contribution_limit": {
   "individual_per_election": 3500,
   "source_url": "https://www.fec.gov/help-candidates-and-committees/candidate-taking-receipts/contribution-limits/",
-  "retrieved_at": "2026-10-22T20:47:51.438018+00:00",
+  "retrieved_at": "2026-10-22T23:39:31.390141+00:00",
   "status": "retrieved",
   "cycle_label": "2025-26"
  },
@@ -101,9 +101,9 @@
   "koh": {
    "compare_at": "https://www.fec.gov/data/candidate/H8MA03072/?cycle=2026&election_full=true",
    "figures": {
-    "total_receipts": 5251469.39,
-    "total_disbursements": 4253534.06,
-    "cash_on_hand": 999275.05,
+    "total_receipts": 5383420.65,
+    "total_disbursements": 4302794.83,
+    "cash_on_hand": 1081990.54,
     "debts": 234000.0,
     "individual_itemized": 4531906.27
    },
@@ -112,9 +112,9 @@
   "jones": {
    "compare_at": "https://www.fec.gov/data/candidate/H6MA06202/?cycle=2026&election_full=true",
    "figures": {
-    "total_receipts": 586090.76,
-    "total_disbursements": 370619.67,
-    "cash_on_hand": 215471.09,
+    "total_receipts": 619903.76,
+    "total_disbursements": 450121.61,
+    "cash_on_hand": 169782.15,
     "debts": 0.0,
     "individual_itemized": 530826.67
    },

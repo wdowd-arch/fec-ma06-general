@@ -142,10 +142,35 @@ or "12 a.m.," courtesy titles, banned phrases, an acronym used before or without
 introduction, and any word shared by the headline and dek. It prints possible Oxford commas
 and unexplained all-caps tokens for review.
 
-Test at phone width: the section nav becomes a jump menu below 821 px and every data table
-reflows into labeled cards below 768 px (headers stay in the DOM for assistive technology).
+The page has two presentations on one URL, chosen by viewport width (CSS media queries and
+`matchMedia`, never user-agent sniffing): a desktop version at 769 px and wider and a phone
+version at 768 px and narrower. Both read the same data in memory; crossing 768 px by resize or
+rotation re-renders the components whose markup differs (tables, candidate snapshots, map
+readout, timeline, methodology) without a reload or refetch. On phones the section nav is a
+jump menu, tables become labeled cards (the by-group table shows priority columns with a
+button for the rest; the district towns table scrolls sideways with a sticky town column),
+the candidate snapshots become one three-column comparison, the map readout sits below the
+map with a Northeast inset and a button per small state, and the methodology subsections
+collapse. Headers stay in the DOM for assistive technology. `docs/responsive-build.md` has the
+file map and the full specification record.
 
-### Spot-check record, build of Oct. 22, 2026
+### Spot-check record, build of Oct. 22, 2026, 7:45 p.m.
+
+Both pre-general reports (Form 3, 12G, covering Oct. 1 through Oct. 14) were filed Oct. 22
+and the page uses their raw summary lines: Koh receipts $5,383,420.65, disbursements
+$4,302,794.83, cash on hand $1,081,990.54, debts $234,000; Jones receipts $619,903.76,
+disbursements $450,121.61, cash on hand $169,782.15, debts $0. The FEC's processed
+candidate-totals endpoint still stops at Sept. 30, so `tools/spot_check.py` reports those
+six figures as mismatches against it (the Sept. 30 figures below) while confirming that
+each one appears on the summary line of the committee's own raw filing (file numbers 2038378
+and 2038923). Debts and itemized individual contributions (processed, through Sept. 30)
+matched. Both processed independent-expenditure totals still matched (New Leadership PAC
+$1,055,318.67 and Think Big $705,312.66, both supporting Koh); two groups opposing Koh
+(Guardrails Alliance $30,910, United Future PAC $20,000) appear only in 24-hour notices or
+raw filings and have no FEC per-candidate total yet. Both candidates reconciled to the cent
+against processed totals.
+
+### Spot-check record, build of Oct. 22, 2026, 4:50 p.m.
 
 All 10 candidate figures (five each) matched the FEC candidate-totals endpoint to the cent:
 Koh receipts $5,251,469.39, disbursements $4,253,534.06, cash on hand $999,275.05, debts
