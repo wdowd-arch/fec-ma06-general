@@ -217,6 +217,71 @@
   }
 
   // ---------------------------------------------------------------- overview
+  // Candidate headshots live beside the nameplate; inside a Ghost card the
+  // embed sets window.MA06_ASSET_BASE so the same paths resolve.
+  const ASSET_BASE = window.MA06_ASSET_BASE ? String(window.MA06_ASSET_BASE).replace(/\/?$/, "/") : "";
+  const PHOTOS = { koh: "assets/images/koh.jpg", jones: "assets/images/jones.jpg" };
+
+  // The primary edition's candidate snapshot cards: photo, name, bar, the
+  // same seven figures for each nominee.
+  function renderCandidateCards(cs) {
+    const host = byId("overview-cards");
+    if (!host) return;
+    const max = Math.max(...cs.map((c) => (isNum(c.totals.receipts) ? c.totals.receipts : 0)), 0);
+    clear(host);
+    cs.forEach((c) => {
+      const t = c.totals, g = c.geography || {}, es = c.election_split || {};
+      const through = t.raw_through || t.processed_through || (c.latest_report && c.latest_report.coverage_end);
+      // Every percentage on the page states its base: "7.3% of $4.6 million".
+      const inDistrict = isNum(g.in_district) && isNum(g.located_total) && g.located_total > 0 ? pct(g.in_district / g.located_total) + " of " + moneyProse(g.located_total) : "not available";
+      const rows = [
+        ["Total receipts", money(t.receipts)],
+        ["Total disbursements", money(t.disbursements)],
+        ["Cash on hand", money(t.cash_on_hand)],
+        ["Debt owed", money(t.debts)],
+        ["Contributor records", isNum(es.contributors_total) ? fmtInt.format(es.contributors_total) : "not available"],
+        ["Estimated in MA-06", inDistrict],
+        ["Data through", through ? fmtDay(through) : "not reported"],
+      ];
+      const dl = el("dl", {});
+      rows.forEach(([k, v]) => { dl.appendChild(el("dt", {}, [k])); dl.appendChild(el("dd", {}, [v])); });
+      const share = max > 0 && isNum(t.receipts) ? (t.receipts / max) * 100 : 0;
+      const card = el("div", { class: "candidate-card" }, [
+        PHOTOS[c.key] ? el("img", { class: "candidate-photo", src: ASSET_BASE + PHOTOS[c.key], alt: c.name, width: "72", height: "72", loading: "lazy" }) : null,
+        el("h3", {}, [c.name, el("span", { class: "party" }, ["(" + c.party_abbr + ")"])]),
+        el("div", { class: "mini-bar " + c.key, role: "img", "aria-label": c.name + " total receipts " + money(t.receipts) + (max > 0 ? ", " + pct(share / 100) + " of the larger figure" : "") }, [el("span", { style: "width:" + share + "%" })]),
+        dl,
+      ]);
+      if (isRaw(t.source)) {
+        const note = el("p", { class: "card-note" }, ["Receipts, disbursements, cash and debt come from a "]);
+        note.appendChild(rawPill());
+        note.appendChild(document.createTextNode(" the FEC has posted but not yet processed."));
+        card.appendChild(note);
+      }
+      host.appendChild(card);
+    });
+  }
+
+  // The reader-support card the primary edition shows above the snapshots
+  // and again at the foot of the page.
+  function supportCardTemplate() {
+    return el("aside", { class: "support-card", "aria-label": "Support The Marblehead Independent" }, [
+      el("p", { class: "kicker" }, ["Reader-supported"]),
+      el("p", {}, ["This coverage is free. Recurring contributors keep local journalism open to everyone in Marblehead and across the North Shore."]),
+      el("div", { class: "support-actions" }, [
+        el("a", { class: "btn", href: "https://www.marbleheadindependent.com/ways-to-support/" }, ["Support local journalism"]),
+        el("a", { class: "btn secondary", href: "https://www.marbleheadindependent.com/the-founders-circle/" }, ["Contribute to our founders’ circle"]),
+      ]),
+      el("p", { class: "support-newsletter" }, ["Not ready to contribute yet? ", el("a", { href: "https://www.marbleheadindependent.com/#/portal/signup" }, ["Sign up for our weekly newsletter"]), "."]),
+    ]);
+  }
+  function renderSupportCards() {
+    ["support-card-top", "support-card-bottom"].forEach((id) => {
+      const host = byId(id);
+      if (host) { clear(host).appendChild(supportCardTemplate()); }
+    });
+  }
+
   function renderOverview() {
     const cs = cands();
     const grid = el("div", { class: "metric-grid" });
@@ -261,6 +326,9 @@
       grid.appendChild(tile);
     });
     clear(byId("overview-metrics")).appendChild(grid);
+
+    renderSupportCards();
+    renderCandidateCards(cs);
 
     const recon = clear(byId("overview-recon"));
     cs.forEach((c) => {
@@ -366,6 +434,40 @@
   }
 
   // ---------------------------------------------------------------- late
+  const LATE48_COLS = [
+    { key: "date", label: "Date received", render: (r) => fmtDate(r.date) },
+    { key: "candidate", label: "Candidate", render: (r) => pill(r.candidate, r.candidate_key) },
+    { key: "contributor", label: "Contributor", wrap: true, render: (r) => r.contributor || "not reported" },
+    { key: "city", label: "City, state", render: (r) => (r.city ? r.city + ", " : "") + (r.state || "") },
+    { key: "employer", label: "Employer, occupation", wrap: true, render: (r) => [r.employer, r.occupation].filter(Boolean).join(", ") || "not reported" },
+    { key: "amount", label: "Amount", num: true, cents: true, render: (r) => isNum(r.amount) ? money(r.amount, true) : "see filing" },
+    { key: "filed", label: "Notice", wrap: true, render: (r) => { const s = el("span", {}, ["Filed " + fmtDay(r.filed) + " · ", link(r.filing_page || r.fec_url, "View on FEC.gov")]); if (r.raw) { s.appendChild(document.createTextNode(" ")); s.appendChild(rawPill()); } if (r.amended) { s.appendChild(document.createTextNode(" ")); s.appendChild(pill("Amended")); } return s; }, sortValue: (r) => r.filed },
+  ];
+  function late48Rows() {
+    const rows = [];
+    (state.data.late_money.notices_48h || []).forEach((n) => {
+      n.contributions.forEach((x) => rows.push(Object.assign({}, x, {
+        candidate: n.candidate, candidate_key: n.candidate_key, filed: n.filed, amended: n.amended, raw: isRaw(n.source),
+        filing_page: n.filing_page, fec_url: n.fec_url, before_window: n.before_window,
+      })));
+    });
+    return rows;
+  }
+  function renderLate48Rows() {
+    const lm = state.data.late_money, notices = lm.notices_48h || [];
+    const ck = byId("late-48-candidate").value, q = byId("late-48-search").value.trim().toLowerCase();
+    const all = late48Rows();
+    const rows = all.filter((r) => (ck === "__all__" || r.candidate_key === ck) &&
+      (!q || [r.contributor, r.city, r.state, r.employer, r.occupation].filter(Boolean).join(" ").toLowerCase().includes(q)));
+    const unread = notices.filter((n) => !n.contributions.length);
+    const early = notices.filter((n) => n.before_window);
+    let text = fmtInt.format(rows.length) + " of " + fmtInt.format(all.length) + " " + plural(all.length, "contribution") + " shown, totaling " + money(rows.reduce((a, r) => a + (isNum(r.amount) ? r.amount : 0), 0)) + ", from " + numWord(notices.length) + " " + plural(notices.length, "notice") + " filed since " + fmtDay(lm.window_start) + ".";
+    if (early.length) text += " " + numSentenceStart(early.length) + " " + plural(early.length, "notice lists", "notices list") + " only contributions dated before " + fmtDate(lm.window_start) + "; the committee filed late or for the primary’s own 48-hour window.";
+    if (unread.length) text += " The line items of " + numWord(unread.length) + " " + plural(unread.length, "notice") + " could not be read; open the filing for the contributions.";
+    byId("late-48-count").textContent = text;
+    renderTable(byId("late-48"), LATE48_COLS, rows, { defaultSort: "date", empty: notices.length ? "No contributions match the filter." : "No 48-hour notices have been filed by either committee since " + fmtDate(lm.window_start) + "." });
+  }
+
   function renderLate() {
     const d = state.data, lm = d.late_money;
     clear(byId("late-note")).append(
@@ -376,35 +478,16 @@
       summary.appendChild(pairBlock(c, [el("p", { class: "panel-note", style: "margin:0;max-width:none;text-align:left" }, [
         numSentenceStart(l.notices_48h_count) + " 48-hour " + plural(l.notices_48h_count, "notice") + " on file since " + fmtDay(lm.window_start) + ", reporting " + numWord(l.contributions_48h) + " " + plural(l.contributions_48h, "contribution") + " totaling " + money(l.notices_48h_total) + "."])]));
     });
-    const list = clear(byId("late-48"));
-    const notices = lm.notices_48h || [];
-    byId("late-48-count").textContent = fmtInt.format(notices.length) + " " + plural(notices.length, "notice") + " on file for both candidates combined.";
-    if (!notices.length) list.appendChild(emptyState("No 48-hour notices have been filed by either committee since " + fmtDate(lm.window_start) + "."));
-    notices.forEach((n) => {
-      const card = el("article", { class: "notice-card", "aria-label": n.candidate + " 48-hour notice filed " + fmtDate(n.filed) });
-      const head = el("div", { class: "head" }, [
-        el("span", {}, [el("strong", {}, [n.candidate]), " ", pill(n.candidate_key === "koh" ? "D" : "R", n.candidate_key), n.amended ? " " : null, n.amended ? pill("Amended") : null, isRaw(n.source) ? " " : null, isRaw(n.source) ? rawPill() : null]),
-        el("span", { class: "meta" }, ["Filed " + fmtDate(n.filed) + " · " + money(n.total, true) + " across " + numWord(n.count) + " " + plural(n.count, "contribution") + " · ", link(n.filing_page || n.fec_url, "View the notice on FEC.gov")]),
-      ]);
-      card.appendChild(head);
-      if (n.before_window) card.appendChild(el("p", { class: "meta", style: "margin:.3rem 0 0" }, ["Every contribution on this notice is dated before " + fmtDate(lm.window_start) + "; the committee filed it late or for the primary’s own 48-hour window."]));
-      if (n.contributions.length) {
-        const t = el("table", { class: "card-table" }, [
-          el("thead", {}, [el("tr", {}, [el("th", { scope: "col" }, ["Contributor"]), el("th", { scope: "col" }, ["City, state"]), el("th", { scope: "col" }, ["Employer, occupation"]), el("th", { scope: "col" }, ["Date received"]), el("th", { scope: "col", class: "num" }, ["Amount"])])]),
-          el("tbody", {}, n.contributions.map((x) => el("tr", {}, [
-            el("td", { "data-label": "Contributor" }, [x.contributor || "not reported"]),
-            el("td", { "data-label": "City, state" }, [(x.city ? x.city + ", " : "") + (x.state || "")]),
-            el("td", { "data-label": "Employer, occupation", class: "wrap-cell" }, [[x.employer, x.occupation].filter(Boolean).join(", ") || "not reported"]),
-            el("td", { "data-label": "Date received" }, [fmtDate(x.date)]),
-            el("td", { "data-label": "Amount", class: "num" }, [isNum(x.amount) ? money(x.amount, true) : "see filing"]),
-          ]))),
-        ]);
-        card.appendChild(t);
-      } else {
-        card.appendChild(el("p", { class: "meta", style: "margin:.4rem 0 0" }, ["The notice’s line items could not be read; open the filing for the contributions."]));
-      }
-      list.appendChild(card);
-    });
+    // Every contribution from every notice in one sortable table, the same
+    // pattern as the 24-hour table below it, with the notice linked per row.
+    const sel = byId("late-48-candidate");
+    if (!sel.dataset.filled) {
+      cands().forEach((c) => sel.appendChild(el("option", { value: c.key }, [c.name])));
+      sel.dataset.filled = "1";
+      sel.addEventListener("change", renderLate48Rows);
+      byId("late-48-search").addEventListener("input", debounce(renderLate48Rows, 150));
+    }
+    renderLate48Rows();
     const ie = lm.ie_24h || [];
     byId("late-24-count").textContent = fmtInt.format(ie.length) + " 24-hour " + plural(ie.length, "report") + " on file, totaling " + money(ie.reduce((a, r) => a + r.amount, 0)) + ".";
     renderTable(byId("late-24"), IE_COLS, ie, { defaultSort: "date", empty: "No 24-hour independent expenditure reports naming either candidate are on file." });

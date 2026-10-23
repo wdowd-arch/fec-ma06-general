@@ -44,6 +44,7 @@ HEAD = """<!-- MA-06 general election campaign finance dashboard: Ghost HTML car
   var MA06_BASE = "{base}";
   var MA06_FILES = {files};
   window.MA06_DATA_BASE = MA06_BASE;
+  window.MA06_ASSET_BASE = MA06_BASE;
   window.MA06_DATA_FILES = {{
     "dashboard.json": MA06_FILES["dashboard.json"] || MA06_BASE + "dashboard.json",
     "copy.json": MA06_FILES["copy.json"] || MA06_BASE + "copy.json",
@@ -60,8 +61,10 @@ HEAD = """<!-- MA-06 general election campaign finance dashboard: Ghost HTML car
 
 TAIL = """<script>
   (function () {
-    var img = document.querySelector("#ma06-app [data-ma06-src]");
-    if (img) img.src = MA06_FILES.nameplate || MA06_BASE + img.getAttribute("data-ma06-src");
+    document.querySelectorAll("#ma06-app [data-ma06-src]").forEach(function (img) {
+      var rel = img.getAttribute("data-ma06-src"), name = rel.split("/").pop();
+      img.src = MA06_FILES[name] || (name === "nameplate-horizontal.png" && MA06_FILES.nameplate) || MA06_BASE + rel;
+    });
     var script = document.createElement("script");
     script.src = MA06_FILES.script || MA06_BASE + "app.js";
     document.body.appendChild(script);
@@ -84,7 +87,9 @@ def build_embed(base, files):
     with open(os.path.join(ROOT, "index.html"), encoding="utf-8") as f:
         html = f.read()
     block = extract_app_div(html)
-    block = block.replace('src="assets/images/nameplate-horizontal.png"', 'src="" data-ma06-src="assets/images/nameplate-horizontal.png"')
+    # Every repo-relative image (nameplate, candidate headshots) is pinned at
+    # load time from MA06_BASE / MA06_FILES, so the card has no relative paths.
+    block = re.sub(r'src="(assets/[^"]+)"', r'src="" data-ma06-src="\1"', block)
     assert ' src="assets/' not in block, "an asset path was not rewritten"
     files_js = json.dumps({k: v for k, v in files.items() if v}, indent=4, sort_keys=True)
     out = HEAD.format(base=base, page=PAGE_URL, files=files_js) + block + "\n" + TAIL
