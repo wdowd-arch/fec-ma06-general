@@ -262,7 +262,20 @@
     });
     clear(byId("overview-metrics")).appendChild(grid);
 
-    // Render candidate photos
+    // Render candidate photos at top (large) and in metrics (small)
+    const topPhotosDiv = clear(byId("overview-photos-top"));
+    const PHOTO_MAP_TOP = { jones: "assets/images/jones-top.jpg", koh: "assets/images/koh-top.jpg" };
+    cs.forEach((c) => {
+      const photoCol = el("div", { class: "photo-col" });
+      const topPhotoPath = PHOTO_MAP_TOP[c.key];
+      if (topPhotoPath) {
+        photoCol.appendChild(el("img", { src: topPhotoPath, alt: c.name }));
+      }
+      photoCol.appendChild(el("div", { class: "name " + c.key }, [c.name]));
+      topPhotosDiv.appendChild(photoCol);
+    });
+
+    // Small photos in metrics section
     const photosDiv = clear(byId("overview-photos"));
     const photoGrid = el("div", { class: "h2h" });
     const PHOTO_MAP = { jones: "assets/images/jones.jpg", koh: "assets/images/koh.jpg" };
