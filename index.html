@@ -32,6 +32,7 @@
     <h1 id="headline">Loading…</h1>
     <p class="dek" id="dek"></p>
     <p class="byline" id="byline"></p>
+    <p class="mobile-rotate-hint">↻ On a phone, turn it sideways; this dashboard is easier to read in landscape.</p>
     <div class="meta-line">
       <span>Reports cover through: <strong id="meta-data-through">—</strong></span>
       <span>Filings last checked: <strong id="meta-last-checked">—</strong></span>
@@ -39,12 +40,19 @@
       <span><a href="#methodology">How the numbers were built and what they cannot show</a></span>
     </div>
     <p class="build-note hidden" id="build-note"></p>
+    <figure class="masthead-photo masthead-photo-pair">
+      <div class="pair">
+        <img src="assets/images/koh.jpg" alt="Dan Koh, the Democratic nominee, in a checked shirt with arms crossed on a storefront sidewalk" width="1000" height="1000">
+        <img src="assets/images/jones.jpg" alt="Micah Jones, the Republican nominee, in a navy quarter-zip pullover" width="1000" height="1000">
+      </div>
+      <figcaption>Dan Koh, left, the Democratic nominee, and Micah Jones, the Republican nominee, for Massachusetts’ 6th Congressional District.</figcaption>
+    </figure>
   </div>
 </header>
 
 <nav class="sectionnav" aria-label="Dashboard sections">
   <div class="wrap">
-    <a href="https://www.marbleheadindependent.com" class="nav-home">Independent home</a>
+    <a href="https://www.marbleheadindependent.com" class="nav-home">MHD Indy Home</a>
     <div class="sectionnav-links">
       <a href="#overview">Overview</a>
       <a href="#elections">Primary vs. general</a>
@@ -84,10 +92,14 @@
         <h2>Where the two campaigns stand</h2>
         <p class="panel-note" id="overview-note">Cycle-to-date figures from each committee’s most recent report to the FEC. Each tile shows the same measure for both candidates.</p>
       </div>
-      <div id="overview-photos-top" class="candidate-photos-top"></div>
-      <div id="overview-photos" class="candidate-photos"></div>
       <div id="overview-metrics"><div class="loading-state">Loading FEC data…</div></div>
       <div id="overview-recon"></div>
+
+      <div id="support-card-top"></div>
+
+      <h3 class="subhead">Candidate snapshots</h3>
+      <p class="panel-note" style="margin-bottom:.9rem;">The same seven figures for each nominee, cycle to date. The bar shows total receipts as a share of the larger figure.</p>
+      <div id="overview-cards" class="card-grid"></div>
     </div>
   </section>
 
@@ -261,6 +273,8 @@
       </details>
     </div>
   </section>
+
+  <div class="wrap"><div id="support-card-bottom"></div></div>
 
 </main>
 

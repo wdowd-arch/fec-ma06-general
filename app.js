@@ -217,6 +217,71 @@
   }
 
   // ---------------------------------------------------------------- overview
+  // Candidate headshots live beside the nameplate; inside a Ghost card the
+  // embed sets window.MA06_ASSET_BASE so the same paths resolve.
+  const ASSET_BASE = window.MA06_ASSET_BASE ? String(window.MA06_ASSET_BASE).replace(/\/?$/, "/") : "";
+  const PHOTOS = { koh: "assets/images/koh.jpg", jones: "assets/images/jones.jpg" };
+
+  // The primary edition's candidate snapshot cards: photo, name, bar, the
+  // same seven figures for each nominee.
+  function renderCandidateCards(cs) {
+    const host = byId("overview-cards");
+    if (!host) return;
+    const max = Math.max(...cs.map((c) => (isNum(c.totals.receipts) ? c.totals.receipts : 0)), 0);
+    clear(host);
+    cs.forEach((c) => {
+      const t = c.totals, g = c.geography || {}, es = c.election_split || {};
+      const through = t.raw_through || t.processed_through || (c.latest_report && c.latest_report.coverage_end);
+      // Every percentage on the page states its base: "7.3% of $4.6 million".
+      const inDistrict = isNum(g.in_district) && isNum(g.located_total) && g.located_total > 0 ? pct(g.in_district / g.located_total) + " of " + moneyProse(g.located_total) : "not available";
+      const rows = [
+        ["Total receipts", money(t.receipts)],
+        ["Total disbursements", money(t.disbursements)],
+        ["Cash on hand", money(t.cash_on_hand)],
+        ["Debt owed", money(t.debts)],
+        ["Contributor records", isNum(es.contributors_total) ? fmtInt.format(es.contributors_total) : "not available"],
+        ["Estimated in MA-06", inDistrict],
+        ["Data through", through ? fmtDay(through) : "not reported"],
+      ];
+      const dl = el("dl", {});
+      rows.forEach(([k, v]) => { dl.appendChild(el("dt", {}, [k])); dl.appendChild(el("dd", {}, [v])); });
+      const share = max > 0 && isNum(t.receipts) ? (t.receipts / max) * 100 : 0;
+      const card = el("div", { class: "candidate-card" }, [
+        PHOTOS[c.key] ? el("img", { class: "candidate-photo", src: ASSET_BASE + PHOTOS[c.key], alt: c.name, width: "72", height: "72", loading: "lazy" }) : null,
+        el("h3", {}, [c.name, el("span", { class: "party" }, ["(" + c.party_abbr + ")"])]),
+        el("div", { class: "mini-bar " + c.key, role: "img", "aria-label": c.name + " total receipts " + money(t.receipts) + (max > 0 ? ", " + pct(share / 100) + " of the larger figure" : "") }, [el("span", { style: "width:" + share + "%" })]),
+        dl,
+      ]);
+      if (isRaw(t.source)) {
+        const note = el("p", { class: "card-note" }, ["Receipts, disbursements, cash and debt come from a "]);
+        note.appendChild(rawPill());
+        note.appendChild(document.createTextNode(" the FEC has posted but not yet processed."));
+        card.appendChild(note);
+      }
+      host.appendChild(card);
+    });
+  }
+
+  // The reader-support card the primary edition shows above the snapshots
+  // and again at the foot of the page.
+  function supportCardTemplate() {
+    return el("aside", { class: "support-card", "aria-label": "Support The Marblehead Independent" }, [
+      el("p", { class: "kicker" }, ["Reader-supported"]),
+      el("p", {}, ["This coverage is free. Recurring contributors keep local journalism open to everyone in Marblehead and across the North Shore."]),
+      el("div", { class: "support-actions" }, [
+        el("a", { class: "btn", href: "https://www.marbleheadindependent.com/ways-to-support/" }, ["Support local journalism"]),
+        el("a", { class: "btn secondary", href: "https://www.marbleheadindependent.com/the-founders-circle/" }, ["Contribute to our founders’ circle"]),
+      ]),
+      el("p", { class: "support-newsletter" }, ["Not ready to contribute yet? ", el("a", { href: "https://www.marbleheadindependent.com/#/portal/signup" }, ["Sign up for our weekly newsletter"]), "."]),
+    ]);
+  }
+  function renderSupportCards() {
+    ["support-card-top", "support-card-bottom"].forEach((id) => {
+      const host = byId(id);
+      if (host) { clear(host).appendChild(supportCardTemplate()); }
+    });
+  }
+
   function renderOverview() {
     const cs = cands();
     const grid = el("div", { class: "metric-grid" });
@@ -262,33 +327,8 @@
     });
     clear(byId("overview-metrics")).appendChild(grid);
 
-    // Render candidate photos at top (large) and in metrics (small)
-    const topPhotosDiv = clear(byId("overview-photos-top"));
-    const PHOTO_MAP_TOP = { jones: "assets/images/jones-top.jpg", koh: "assets/images/koh-top.jpg" };
-    cs.forEach((c) => {
-      const photoCol = el("div", { class: "photo-col" });
-      const topPhotoPath = PHOTO_MAP_TOP[c.key];
-      if (topPhotoPath) {
-        photoCol.appendChild(el("img", { src: topPhotoPath, alt: c.name }));
-      }
-      photoCol.appendChild(el("div", { class: "name " + c.key }, [c.name]));
-      topPhotosDiv.appendChild(photoCol);
-    });
-
-    // Small photos in metrics section
-    const photosDiv = clear(byId("overview-photos"));
-    const photoGrid = el("div", { class: "h2h" });
-    const PHOTO_MAP = { jones: "assets/images/jones.jpg", koh: "assets/images/koh.jpg" };
-    cs.forEach((c) => {
-      const photoCol = el("div", { class: "candidate-col" });
-      const photoPath = PHOTO_MAP[c.key];
-      if (photoPath) {
-        photoCol.appendChild(el("img", { class: "candidate-photo", src: photoPath, alt: c.name }));
-      }
-      photoCol.appendChild(el("div", { class: "who " + c.key }, [c.name]));
-      photoGrid.appendChild(photoCol);
-    });
-    photosDiv.appendChild(photoGrid);
+    renderSupportCards();
+    renderCandidateCards(cs);
 
     const recon = clear(byId("overview-recon"));
     cs.forEach((c) => {

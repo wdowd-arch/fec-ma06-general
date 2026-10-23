@@ -95,6 +95,36 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
   border: 1px solid var(--independent-red); border-radius: var(--radius); padding: .6rem .8rem;
 }
 
+/* Masthead photo, as on the primary edition; here a two-up pair of the nominees. */
+#ma06-app .masthead-photo { margin: 1.4rem auto 0; max-width: var(--maxw); }
+#ma06-app .masthead-photo img { display: block; width: 100%; height: auto; border-radius: var(--radius); }
+#ma06-app .masthead-photo figcaption { font-size: .74rem; color: var(--ink-soft); margin-top: .45rem; text-align: center; }
+#ma06-app .masthead-photo-pair .pair { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; max-width: 860px; margin-inline: auto; }
+#ma06-app .masthead-photo-pair img { aspect-ratio: 1 / 1; object-fit: cover; object-position: top; }
+@media (max-width: 480px) { #ma06-app .masthead-photo-pair .pair { gap: .5rem; } }
+
+/* Phone-only hint, a suggestion rather than a requirement: every section
+   still works in portrait, this just says landscape is roomier. */
+#ma06-app .mobile-rotate-hint { display: none; }
+@media (max-width: 820px) {
+  #ma06-app .mobile-rotate-hint {
+    display: block; margin: .6rem 0 0; font-size: .8rem; color: var(--ink-soft);
+    padding: .5rem .75rem; border: 1px solid var(--hairline); border-radius: 6px; background: rgba(0,0,0,.02);
+  }
+}
+
+/* ---- reader-support card (shared with the primary edition) ---- */
+#ma06-app .support-card {
+  display: block; text-align: center; border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline);
+  padding: 1.3rem 1rem; margin: 1.8rem auto; max-width: 40rem;
+}
+#ma06-app .support-card p { margin: 0 auto .7rem; font-size: .86rem; color: var(--ink-soft); max-width: 34rem; }
+#ma06-app .support-card .kicker { margin-bottom: .5rem; color: var(--independent-red); letter-spacing: .1em; }
+#ma06-app .support-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; margin-bottom: .7rem; }
+#ma06-app .support-actions .btn { font-size: .72rem; font-weight: 600; padding: .34rem .7rem; background: transparent; color: var(--harbor-black); border-color: var(--hairline); }
+#ma06-app .support-actions .btn:hover { background: var(--linen); color: var(--harbor-black); border-color: var(--hairline); }
+#ma06-app .support-newsletter { font-size: .78rem; color: var(--ink-soft); margin-bottom: 0; }
+
 /* ---- sticky section nav ---- */
 #ma06-app .sectionnav {
   text-align: left; position: sticky; top: 0; z-index: 30; background: rgba(253,249,244,.96);
@@ -102,7 +132,9 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
 }
 #ma06-app .sectionnav .wrap { display: flex; align-items: center; gap: .3rem; overflow-x: auto; padding-block: .55rem; scrollbar-width: thin; }
 #ma06-app .sectionnav-links { display: flex; gap: .3rem; flex: 1; }
-@media (min-width: 821px) { #ma06-app .sectionnav .wrap { justify-content: center; } }
+/* "safe center" falls back to start when the links overflow the wrap, so the
+   home link is never clipped off the left edge on narrower desktops. */
+@media (min-width: 821px) { #ma06-app .sectionnav .wrap { justify-content: center; justify-content: safe center; } }
 #ma06-app .sectionnav-jump { display: none; }
 @media (max-width: 820px) {
   #ma06-app .sectionnav-links { display: none; }
@@ -155,12 +187,26 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
 #ma06-app .h2h .bar span { display: block; height: 100%; min-width: 2px; }
 #ma06-app .h2h .bar.koh span { background: var(--koh); }
 #ma06-app .h2h .bar.jones span { background: var(--jones); }
-#ma06-app .candidate-photos-top { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem; align-items: center; }
-#ma06-app .candidate-photos-top .photo-col { display: flex; flex-direction: column; align-items: center; }
-#ma06-app .candidate-photos-top img { width: 180px; height: 180px; border-radius: 50%; object-fit: cover; }
-#ma06-app .candidate-photos-top .name { font-family: var(--serif); font-weight: 700; font-size: 1.3rem; margin-top: 1rem; }
-#ma06-app .candidate-photo { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin-bottom: .4rem; }
-#ma06-app .h2h .candidate-col { display: flex; flex-direction: column; align-items: center; }
+
+/* ---- candidate snapshot cards (the primary edition's card pattern) ---- */
+#ma06-app .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .9rem; text-align: left; max-width: 640px; margin-inline: auto; }
+#ma06-app .candidate-card {
+  background: var(--paper); border: 1px solid var(--hairline); border-radius: var(--radius); padding: .95rem 1rem;
+}
+#ma06-app .candidate-photo {
+  display: block; width: 72px; height: 72px; border-radius: 50%; object-fit: cover; object-position: top;
+  margin-bottom: .55rem; border: 1px solid var(--hairline);
+}
+#ma06-app .candidate-card h3 { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-bottom: .5rem; }
+#ma06-app .candidate-card h3 .party { font-family: var(--sans); font-weight: 600; font-size: .72rem; color: var(--ink-soft); letter-spacing: .04em; }
+#ma06-app .candidate-card dl { display: grid; grid-template-columns: auto 1fr; gap: .18rem .5rem; font-size: .82rem; margin: 0; }
+#ma06-app .candidate-card dt { color: var(--ink-soft); }
+#ma06-app .candidate-card dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+#ma06-app .candidate-card .card-note { font-size: .72rem; color: var(--ink-soft); margin: .55rem 0 0; }
+#ma06-app .mini-bar { height: 6px; border-radius: 3px; background: var(--hairline); overflow: hidden; margin: 0 0 .6rem; }
+#ma06-app .mini-bar span { display: block; height: 100%; min-width: 2px; background: var(--independent-red); }
+#ma06-app .mini-bar.koh span { background: var(--koh); }
+#ma06-app .mini-bar.jones span { background: var(--jones); }
 #ma06-app .recon-flag {
   font-size: .74rem; color: var(--independent-red); margin: .5rem 0 0; border-left: 2px solid var(--independent-red); padding-left: .5rem; text-align: left;
 }
