@@ -262,6 +262,21 @@
     });
     clear(byId("overview-metrics")).appendChild(grid);
 
+    // Render candidate photos
+    const photosDiv = clear(byId("overview-photos"));
+    const photoGrid = el("div", { class: "h2h" });
+    const PHOTO_MAP = { jones: "assets/images/jones.jpg", koh: "assets/images/koh.jpg" };
+    cs.forEach((c) => {
+      const photoCol = el("div", { class: "candidate-col" });
+      const photoPath = PHOTO_MAP[c.key];
+      if (photoPath) {
+        photoCol.appendChild(el("img", { class: "candidate-photo", src: photoPath, alt: c.name }));
+      }
+      photoCol.appendChild(el("div", { class: "who " + c.key }, [c.name]));
+      photoGrid.appendChild(photoCol);
+    });
+    photosDiv.appendChild(photoGrid);
+
     const recon = clear(byId("overview-recon"));
     cs.forEach((c) => {
       const r = c.reconciliation;
