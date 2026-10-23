@@ -36,7 +36,7 @@
       <span><span class="meta-label">Reports cover through:</span> <strong id="meta-data-through">—</strong></span>
       <span><span class="meta-label">Filings last checked:</span> <strong id="meta-last-checked">—</strong></span>
       <span><span class="meta-label">Election:</span> <strong>Tuesday, Nov. 3, 2026</strong></span>
-      <span><a href="#methodology">How the numbers were built and what they cannot show</a></span>
+      <span><a href="#methodology">Methodology</a></span>
     </div>
     <p class="build-note hidden" id="build-note"></p>
     <figure class="masthead-photo masthead-photo-pair">
@@ -62,7 +62,6 @@
       <a href="#party">Party money</a>
       <a href="#timeline">Timeline</a>
       <a href="#spending">Spending</a>
-      <a href="#methodology">Methodology</a>
     </div>
     <label class="sectionnav-jump">
       <span class="sr-only">Jump to a section</span>
@@ -89,15 +88,12 @@
     <div class="wrap">
       <div class="panel-head">
         <h2>Where the two campaigns stand</h2>
-        <p class="panel-note" id="overview-note">Cycle-to-date figures from each committee’s most recent report to the FEC. Each tile shows the same measure for both candidates.</p>
       </div>
       <div id="overview-metrics"><div class="loading-state">Loading FEC data…</div></div>
-      <div id="overview-recon"></div>
 
       <div id="support-card-top"></div>
 
       <h3 class="subhead">Candidate snapshots</h3>
-      <p class="panel-note" style="margin-bottom:.9rem;">The same seven figures for each nominee, cycle to date. The bar shows total receipts as a share of the larger figure.</p>
       <div id="overview-cards" class="card-grid"></div>
     </div>
   </section>
@@ -107,7 +103,7 @@
     <div class="wrap">
       <div class="panel-head">
         <h2>Primary dollars vs. general dollars</h2>
-        <p class="panel-note">Itemized gifts from individuals, split by the election each committee designated on the receipt. A donor may give the per-election limit once for the Sept. 1 primary and again for the Nov. 3 general election.</p>
+        <p class="panel-note">Itemized individual gifts, by the election designated on the receipt.</p>
       </div>
       <p class="finding" id="limit-note"></p>
       <div id="elections-list" class="pair"></div>
@@ -119,7 +115,7 @@
     <div class="wrap">
       <div class="panel-head">
         <h2>Outside groups spend on the race</h2>
-        <p class="panel-note">Independent expenditures reported to the FEC that support or oppose either candidate. Federal law bars these groups from coordinating with the campaigns, and the campaigns do not control the money. Each row links to the filing.</p>
+        <p class="panel-note">Independent expenditures for or against either candidate. Each row links to the filing.</p>
       </div>
       <div id="outside-summary" class="pair"></div>
       <h3 class="subhead">By group</h3>
@@ -206,12 +202,12 @@
     <div class="wrap">
       <div class="panel-head">
         <h2>Where the donors live</h2>
-        <p class="panel-note">Itemized gifts from individuals, grouped by whether the address on the receipt appears to be in the district, elsewhere in Massachusetts or out of state. “Estimated in the district” comes from the ZIP code and town the donor gave the campaign, not a legal determination. <a href="#method-district">How the estimate works</a></p>
+        <p class="panel-note">Itemized individual gifts by the donor’s address. “In the district” is an estimate from ZIP code and town. <a href="#method-district">How the estimate works</a></p>
       </div>
       <div id="geo-summary" class="pair"></div>
       <div class="pill-tabs" id="geo-tabs" role="group" aria-label="Choose a candidate for the map and town lists"></div>
       <h3 class="subhead">Across the United States</h3>
-      <p class="panel-note">Every state is shaded by itemized individual dollars given, relative to the state that gave the most. Select or focus a state, by mouse, touch or keyboard Tab, for the exact amount. The ranked list below the map has the same figures.</p>
+      <p class="panel-note">Select a state for its amount.</p>
       <div class="us-map-layout">
         <div id="geo-map-wrap" class="us-map-wrap"><p class="loading-state" id="geo-map-loading">Map loads when you scroll here.</p></div>
         <div class="us-map-side">
@@ -232,7 +228,7 @@
         </div>
       </div>
       <h3 class="subhead">District towns, including Marblehead</h3>
-      <p class="panel-note">Each town on the estimate’s list, with itemized individual dollars and the count of distinct donor records (name plus ZIP code) for each candidate. Select a column header to sort.</p>
+      <p class="panel-note">Select a column header to sort.</p>
       <p class="scroll-cue" id="geo-town-cue" hidden>Scroll sideways for donor counts.</p>
       <div class="table-scroll" tabindex="0" role="region" aria-label="District towns table, scrollable">
         <table id="geo-town-table" class="card-table"><thead></thead><tbody></tbody></table>
@@ -245,7 +241,7 @@
     <div class="wrap">
       <div class="panel-head">
         <h2>Party money</h2>
-        <p class="panel-note">Two kinds of party support show up in FEC filings: direct contributions from party committees (reported by the campaign on Schedule A) and coordinated party expenditures (reported by the party committee on Schedule F). Both appear here only if a committee has filed them.</p>
+        <p class="panel-note">Direct party contributions (Schedule A) and coordinated party expenditures (Schedule F).</p>
       </div>
       <div id="party-list" class="pair"></div>
     </div>
@@ -256,7 +252,7 @@
     <div class="wrap">
       <div class="panel-head">
         <h2>Week by week since the primary</h2>
-        <p class="panel-note">Itemized receipts and disbursements by week, starting Sept. 2, the day after the primary. Both charts share one scale. Hatched bars come from raw filings the FEC has not yet processed. Dashed lines mark filing deadlines; the shaded weeks are the 48-hour notice window.</p>
+        <p class="panel-note">Itemized receipts and disbursements by week since Sept. 2, on one scale. Dashed lines: filing deadlines. Shaded weeks: 48-hour notice window.</p>
       </div>
       <div class="stack-legend timeline-legend">
         <span class="item"><span class="swatch" style="background:var(--slate-blue)"></span>Itemized receipts</span>
@@ -273,7 +269,7 @@
     <div class="wrap">
       <div class="panel-head">
         <h2>What the campaigns buy</h2>
-        <p class="panel-note">Itemized disbursements, bucketed by a keyword match against each committee’s own description of the expense. The rules are the primary edition’s, listed in the methodology. A payment processor or credit-card statement can hide the ultimate vendor, so these are itemized dollars only, not every dollar of total disbursements.</p>
+        <p class="panel-note">Itemized disbursements, grouped by the committee’s own description of each expense.</p>
       </div>
       <div id="spending-pair" class="pair"></div>
     </div>

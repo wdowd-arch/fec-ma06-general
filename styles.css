@@ -231,6 +231,7 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
 /* ---- candidate pair blocks (used by several sections) ---- */
 #ma06-app .pair { display: grid; gap: 1.4rem; text-align: left; }
 #ma06-app .pair > div { min-width: 0; }
+#ma06-app .pair table { min-width: 0; }   /* half-width tables fit their column */
 #ma06-app .pair h3 { display: flex; align-items: center; gap: .45rem; }
 #ma06-app .swatch-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
 #ma06-app .swatch-dot.koh { background: var(--koh); }
@@ -298,7 +299,7 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
 #ma06-app tbody td { padding: .5rem .7rem; border-top: 1px solid var(--hairline); white-space: nowrap; vertical-align: top; }
 #ma06-app tbody tr:nth-child(even) { background: rgba(0,0,0,.015); }
 #ma06-app tbody tr:hover, #ma06-app tbody tr:focus-within { background: var(--linen); }
-#ma06-app td.wrap-cell { white-space: normal; min-width: 160px; }
+#ma06-app td.wrap-cell { white-space: normal; min-width: 120px; }
 #ma06-app tfoot td { padding: .5rem .7rem; border-top: 2px solid var(--harbor-black); font-weight: 700; background: var(--paper); }
 #ma06-app td.row-toggle, #ma06-app th.row-toggle { display: none; }
 #ma06-app .tag-pill {
@@ -328,7 +329,7 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
 #ma06-app .btn:hover, #ma06-app .btn:focus-visible { background: var(--independent-red); border-color: var(--independent-red); }
 #ma06-app .btn.secondary { background: transparent; color: var(--harbor-black); }
 #ma06-app .btn.secondary:hover, #ma06-app .btn.secondary:focus-visible { background: var(--linen); color: var(--harbor-black); }
-#ma06-app .pill-tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem; }
+#ma06-app .pill-tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: .4rem; margin-bottom: 1rem; }
 #ma06-app .pill-tabs button {
   font-family: var(--sans); font-size: .85rem; font-weight: 600; padding: .35rem .9rem; border-radius: 999px;
   border: 1px solid var(--hairline); background: #fff; color: var(--harbor-black); cursor: pointer; min-height: var(--tap);
@@ -362,7 +363,7 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
   border: 1px solid var(--hairline); border-radius: 6px; background: #fff; color: var(--harbor-black); cursor: pointer;
 }
 #ma06-app .us-map-small button.selected { border-color: var(--harbor-black); box-shadow: inset 0 0 0 1px var(--harbor-black); }
-#ma06-app .us-map-legend { display: flex; align-items: center; gap: .25rem; max-width: 720px; margin: .6rem auto 0; font-size: .8rem; color: var(--ink-soft); flex-wrap: wrap; }
+#ma06-app .us-map-legend { display: flex; align-items: center; justify-content: center; gap: .25rem; margin: .6rem auto 0; font-size: .8rem; color: var(--ink-soft); flex-wrap: wrap; }
 #ma06-app .us-map-swatch { width: 18px; height: 10px; border: 1px solid var(--hairline); }
 
 #ma06-app .two-col { display: grid; gap: 1.6rem; }
@@ -409,7 +410,7 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
   #ma06-app .sectionnav a.nav-home { margin-right: .3rem; padding-right: .6rem; padding-left: 0; }
   #ma06-app .metric-grid { grid-template-columns: repeat(2, 1fr); }
   #ma06-app .pair { grid-template-columns: 1fr 1fr; }
-  #ma06-app .two-col { grid-template-columns: 1.1fr .9fr; }
+  #ma06-app .two-col { grid-template-columns: 1fr 1fr; }
   #ma06-app .us-map-layout { grid-template-columns: minmax(0, 1fr) 280px; }
   #ma06-app .us-map-small { display: none; }        /* desktop selects small states through the inset */
   #ma06-app .snapshot-table { display: none; }
@@ -418,18 +419,16 @@ html:has(body.ma06-page) { scroll-behavior: smooth; -webkit-text-size-adjust: 10
   #ma06-app .method-item p, #ma06-app .method-item summary { pointer-events: auto; }
 }
 @media (min-width: 769px) and (max-width: 1024px) {
-  #ma06-app { --pad: 24px; --nav-h: 132px; }   /* the link bar wraps to three rows here */
+  #ma06-app { --pad: 24px; --nav-h: 94px; }    /* the link bar wraps to two rows here */
 }
-@media (min-width: 1025px) and (max-width: 1279px) {
-  #ma06-app { --nav-h: 94px; }                 /* two rows */
+@media (min-width: 1025px) and (max-width: 1179px) {
+  #ma06-app { --nav-h: 94px; }                 /* two rows; one row from 1,180 px */
 }
 @media (min-width: 1025px) {
   #ma06-app .metric-grid { grid-template-columns: repeat(3, 1fr); }
 }
 @media (min-width: 1280px) {
-  #ma06-app .metric-grid { grid-template-columns: repeat(4, 1fr); }
-  /* six tiles in four columns: the last two widen so the second row has no empty cells */
-  #ma06-app .metric-grid .metric-tile:nth-child(4n + 5):nth-last-child(2), #ma06-app .metric-grid .metric-tile:nth-child(4n + 6):last-child { grid-column: span 2; }
+  /* six tiles stay three by two at every desktop width: four across leaves a lopsided second row */
   #ma06-app .timeline-pair { grid-template-columns: 1fr 1fr; }
 }
 
