@@ -250,6 +250,12 @@
   }
 
   // ---------------------------------------------------------------- masthead
+  // FEC report codes as readers know them; anything else is shown as filed.
+  const REPORT_NAMES = { "12g": "Pre-general", "12p": "Pre-primary", "12s": "Pre-special", "12r": "Pre-runoff", "30g": "Post-general", "30r": "Post-runoff", "30s": "Post-special",
+    "q1": "April quarterly", "q2": "July quarterly", "q3": "October quarterly", "ye": "Year-end", "m2": "February monthly", "m3": "March monthly", "m4": "April monthly", "m5": "May monthly",
+    "m6": "June monthly", "m7": "July monthly", "m8": "August monthly", "m9": "September monthly", "m10": "October monthly", "m11": "November monthly", "m12": "December monthly" };
+  function reportName(r) { if (!r) return "No report on file"; const t = String(r.report_type_full || r.report_type || "").toLowerCase(); return REPORT_NAMES[t] || r.report_type_full || r.report_type || "Report"; }
+
   function renderMasthead() {
     const d = state.data, copy = state.copy || {};
     byId("headline").textContent = copy.headline || "MA-06 general election money";
@@ -383,7 +389,7 @@
       { label: "Spending rate", get: (c) => c.totals.spending_rate, kind: "rate",
         sub: (c) => isNum(c.totals.spending_rate) ? "of " + moneyProse(c.totals.receipts) + " in total receipts spent, " + moneyProse(c.totals.disbursements) : "total receipts were not reported" },
       { label: "Most recent report covered", get: (c) => null, kind: "report",
-        value: (c) => c.latest_report ? c.latest_report.report_type_full : "No report on file",
+        value: (c) => reportName(c.latest_report),
         sub: (c) => c.latest_report ? "Covers through " + fmtDate(c.latest_report.coverage_end) + "; filed " + fmtDate(c.latest_report.filed) : "" },
     ];
     tiles.forEach((t) => {
@@ -420,25 +426,36 @@
     renderSupportCards();
     renderCandidateCards(cs);
 
-    const recon = clear(byId("overview-recon"));
+  }
+
+  // The arithmetic behind the tiles, shown in the methodology rather than
+  // under the tiles: the category check against each committee's processed
+  // summary, and what the raw pre-general figures add on top of it.
+  function reconciliationText() {
+    const out = [];
+    const cs = cands();
     cs.forEach((c) => {
       const r = c.reconciliation;
-      if (r.status === "reconciled") {
-        recon.appendChild(el("p", { class: "panel-note" }, [possessive(c) + " receipt categories add up to the reported total receipts of " + money(r.reported_total_receipts) + "."]));
-      } else {
-        recon.appendChild(el("p", { class: "recon-flag" }, [possessive(c) + " receipt categories total " + money(r.calculated_category_total) + " against reported total receipts of " + money(r.reported_total_receipts) + ". The " + money(r.difference, true) + " difference is shown as unreconciled."]));
-      }
+      const through = c.totals.processed_through ? ", through " + fmtDate(c.totals.processed_through) : "";
+      if (r.status === "reconciled") out.push(possessive(c) + " nine receipt categories on the FEC-processed " + ((c.totals.filed_cycle || {}).report || "summary") + " report add up to its reported total receipts of " + money(r.reported_total_receipts, true) + through + ".");
+      else out.push(possessive(c) + " receipt categories total " + money(r.calculated_category_total, true) + " against reported total receipts of " + money(r.reported_total_receipts, true) + through + "; the " + money(r.difference, true) + " difference is shown as unreconciled.");
     });
-    cs.forEach((c) => {
-      const f = c.totals.filed_cycle || {};
-      [["receipts", "receipts"], ["disbursements", "disbursements"]].forEach(([k, label]) => {
-        if (isNum(f[k]) && isNum(c.totals[k]) && Math.abs(f[k] - c.totals[k]) > 0.01) {
-          recon.appendChild(el("p", { class: "panel-note" }, [possessive(c) + " own " + f.report + " report lists cycle-to-date " + label + " of " + money(f[k], true) + "; the FEC’s processed total, used here and on FEC.gov, is " + money(c.totals[k], true) + ", a difference of " + money(Math.abs(f[k] - c.totals[k]), true) + "."]));
-        }
+    const rawOnes = cs.filter((c) => isRaw(c.totals.source));
+    if (rawOnes.length) {
+      const periods = rawOnes.map((c) => c.last_name + " reported " + money(c.latest_report.receipts_period, true) + " raised and " + money(c.latest_report.disbursements_period, true) + " spent");
+      out.push("The overview tiles use each committee’s " + reportName(rawOnes[0].latest_report).toLowerCase() + " report, a raw filing covering through " + fmtDate(rawOnes[0].latest_report.coverage_end) + ", that the FEC has posted but not yet processed. In that period " + periods.join("; ") + ". Raw figures can change once processing finishes.");
+    } else {
+      // Same period on both sides: a mismatch between the filer's own summary and the FEC's processed total means something.
+      cs.forEach((c) => {
+        const f = c.totals.filed_cycle || {};
+        [["receipts", "receipts"], ["disbursements", "disbursements"]].forEach(([k, label]) => {
+          if (isNum(f[k]) && isNum(c.totals[k]) && Math.abs(f[k] - c.totals[k]) > 0.01) {
+            out.push(possessive(c) + " own " + f.report + " report lists cycle-to-date " + label + " of " + money(f[k], true) + "; the FEC’s processed total, used here and on FEC.gov, is " + money(c.totals[k], true) + ", a difference of " + money(Math.abs(f[k] - c.totals[k]), true) + ".");
+          }
+        });
       });
-    });
-    const rawTotals = cs.filter((c) => isRaw(c.totals.source));
-    if (rawTotals.length) recon.appendChild(el("p", { class: "panel-note" }, ["Figures marked “Raw filing” come from a report the FEC has posted but not yet processed; they can change once processing finishes."]));
+    }
+    return out.join(" ");
   }
 
   // ---------------------------------------------------------------- elections
@@ -934,7 +951,7 @@
       ["Which report each figure comes from", "Total receipts, total disbursements, cash on hand and debt are each committee’s own cycle-to-date figures from its most recent report. The weekly timeline, geography, election split, spending, party and crossover sections are built from itemized rows. The FEC processes line items separately from the summary and can lag it by weeks, so wherever a filing’s line items are not yet processed, the raw e-filed rows are used and labeled. " + cands().map((c) => c.last_name + ": line items processed through " + fmtDate(c.totals.itemized_processed_through) + (c.totals.raw_through ? ", raw rows through " + fmtDate(c.totals.raw_through) : "")).join("; ") + "."],
       ["Amendments", "When a report is amended, only the newest version is used, never the original plus the amendment. This build excluded " + numWord(amendTotal) + " superseded " + plural(amendTotal, "filing") + " across reports, 48-hour notices and independent expenditures. It also dropped " + numWord(m.ie_notices_superseded_by_reports || 0) + " 24- or 48-hour independent expenditure " + plural(m.ie_notices_superseded_by_reports || 0, "notice") + " that later appeared on a regular report."],
       ["Memo and conduit entries", "Rows the filer marked as memo entries, such as the ActBlue or WinRed pass-through record that accompanies an earmarked gift, are left out of every total so the same dollars are not counted twice."],
-      ["Reconciliation", "For each candidate, the nine receipt categories on the committee’s summary (individuals, party committees, other committees, candidate contributions, candidate loans, other loans, transfers, offsets to operating expenditures and other receipts) are added up and compared with reported total receipts. Any difference larger than a cent is shown as “unreconciled” rather than hidden."].concat([]),
+      ["Reconciliation", "For each candidate, the nine receipt categories on the committee’s summary (individuals, party committees, other committees, candidate contributions, candidate loans, other loans, transfers, offsets to operating expenditures and other receipts) are added up and compared with reported total receipts. Any difference larger than a cent is shown as “unreconciled” rather than hidden. " + reconciliationText()],
       ["Primary vs. general", "Each itemized gift from an individual carries the election the committee designated it for. Gifts with no designation are shown as such and not assigned. The per-election limit is read from " + (lim.source_url || "FEC.gov") + " on each build" + (lim.status === "retrieved" ? " (" + money(lim.individual_per_election) + " for " + lim.cycle_label + ")" : ", and was not retrieved on this build") + "."],
       ["Outside spending", "Independent expenditures come from Schedule E rows naming either candidate, processed and raw, with memo rows and superseded amendments removed. The same expenditure can reach the FEC on a 24-hour notice and again on the group’s regular report, each first as a raw e-filing and then as processed data. Raw amounts arrive without cents. Rows are therefore matched on spender, side, whole-dollar amount, payee and date and one is kept, preferring the processed report. Federal law bars the groups that make them from coordinating with a campaign. A group’s spending is listed under the candidate it named and the side it reported, support or oppose."],
       ["Late money", "The FEC requires a 48-hour notice for any contribution of $1,000 or more received from " + fmtDay(d.late_money.window_start) + " through " + fmtDay(d.late_money.window_end) + ", and a 24-hour report for independent expenditures of $1,000 or more in the same period. Both lists are rebuilt on every run and stamped with the time of the check."],
