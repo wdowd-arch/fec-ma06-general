@@ -57,7 +57,10 @@ def collect(url):
         page.wait_for_timeout(800)
         data = page.evaluate("""() => {
           const out = {segments: [], pct_blocks: [], headline: document.getElementById('headline').textContent, dek: document.getElementById('dek').textContent};
-          const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT);
+          // On a Ghost page the theme's own header and footer surround the card;
+          // only the dashboard's text is ours to audit.
+          const root = document.getElementById('ma06-app') || document.body;
+          const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
           let n = walker.currentNode;
           while (n) {
             const cs = getComputedStyle(n);

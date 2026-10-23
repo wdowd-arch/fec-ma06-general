@@ -208,7 +208,9 @@ The daily run stops if the build or the spot-check fails, uploads only `data/das
 and `data/build_log.json` (plus `data/copy.json` when the headline changed), records the
 URLs Ghost assigned in `ghost/manifest.json`, regenerates `ghost/embed.html` with
 `tools/make_embed.py` and rewrites the page's card without changing its draft or published
-status. Step-by-step instructions, the manual alternative and what to publish are in
+status. The card carries `styles.css` and `app.js` inline, because Ghost serves uploaded
+`.css` and `.js` files as plain text; after a page-code change run
+`python3 tools/publish_ghost.py --card-only`. Step-by-step instructions, the manual alternative and what to publish are in
 **[ghost/UPLOAD.md](ghost/UPLOAD.md)**.
 
 Every style rule is scoped under `#ma06-app`, so the theme's own styles are untouched, and the

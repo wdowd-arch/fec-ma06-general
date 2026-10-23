@@ -45,32 +45,44 @@ HEAD = """<!-- MA-06 general election campaign finance dashboard: Ghost HTML car
   var MA06_FILES = {files};
   window.MA06_DATA_BASE = MA06_BASE;
   window.MA06_ASSET_BASE = MA06_BASE;
+  window.MA06_ASSET_FILES = MA06_FILES;
   window.MA06_DATA_FILES = {{
     "dashboard.json": MA06_FILES["dashboard.json"] || MA06_BASE + "dashboard.json",
     "copy.json": MA06_FILES["copy.json"] || MA06_BASE + "copy.json",
     "us-states-paths.json": MA06_FILES["us-states-paths.json"] || MA06_BASE + "us-states-paths.json"
   }};
   (function () {{
+    // Viewport width without the scrollbar, for the full-width rule in styles.css.
+    var setVw = function () {{ document.documentElement.style.setProperty("--ma06-vw", document.documentElement.clientWidth + "px"); }};
+    setVw(); window.addEventListener("resize", setVw);
+    if (MA06_FILES.styles === "inline") return;
     var link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = MA06_FILES.styles || MA06_BASE + "styles.css";
     document.head.appendChild(link);
   }})();
 </script>
-"""
+{inline_css}"""
 
 TAIL = """<script>
   (function () {
+    function resolve(rel) {
+      var name = rel.split("/").pop();
+      return MA06_FILES[name] || (name === "nameplate-horizontal.png" && MA06_FILES.nameplate) || MA06_BASE + rel;
+    }
     document.querySelectorAll("#ma06-app [data-ma06-src]").forEach(function (img) {
-      var rel = img.getAttribute("data-ma06-src"), name = rel.split("/").pop();
-      img.src = MA06_FILES[name] || (name === "nameplate-horizontal.png" && MA06_FILES.nameplate) || MA06_BASE + rel;
+      img.src = resolve(img.getAttribute("data-ma06-src"));
+      var set = img.getAttribute("data-ma06-srcset");
+      if (set) img.srcset = set.split(",").map(function (c) { var p = c.trim().split(/\\s+/); return resolve(p[0]) + (p[1] ? " " + p[1] : ""); }).join(", ");
     });
-    var script = document.createElement("script");
-    script.src = MA06_FILES.script || MA06_BASE + "app.js";
-    document.body.appendChild(script);
+    if (MA06_FILES.script !== "inline") {
+      var script = document.createElement("script");
+      script.src = MA06_FILES.script || MA06_BASE + "app.js";
+      document.body.appendChild(script);
+    }
   })();
 </script>
-"""
+{inline_js}"""
 
 
 def extract_app_div(html):
@@ -90,9 +102,19 @@ def build_embed(base, files):
     # Every repo-relative image (nameplate, candidate headshots) is pinned at
     # load time from MA06_BASE / MA06_FILES, so the card has no relative paths.
     block = re.sub(r'src="(assets/[^"]+)"', r'src="" data-ma06-src="\1"', block)
-    assert ' src="assets/' not in block, "an asset path was not rewritten"
+    block = re.sub(r'srcset="([^"]*assets/[^"]*)"', r'data-ma06-srcset="\1"', block)
+    assert ' src="assets/' not in block and ' srcset="assets/' not in block, "an asset path was not rewritten"
     files_js = json.dumps({k: v for k, v in files.items() if v}, indent=4, sort_keys=True)
-    out = HEAD.format(base=base, page=PAGE_URL, files=files_js) + block + "\n" + TAIL
+    # Ghost's file upload does not accept .css or .js, so those two can be
+    # carried inside the card itself when the manifest marks them "inline".
+    inline_css = inline_js = ""
+    if files.get("styles") == "inline":
+        with open(os.path.join(ROOT, "styles.css"), encoding="utf-8") as f:
+            inline_css = "<style>\n" + f.read().replace("</style", "<\\/style") + "\n</style>\n"
+    if files.get("script") == "inline":
+        with open(os.path.join(ROOT, "app.js"), encoding="utf-8") as f:
+            inline_js = "<script>\n" + f.read().replace("</script", "<\\/script") + "\n</script>\n"
+    out = HEAD.format(base=base, page=PAGE_URL, files=files_js, inline_css=inline_css) + block + "\n" + TAIL.replace("{inline_js}", inline_js)
     for bad in ("<head>", "<title>", "og:", "<body"):
         assert bad not in out, f"embed must not contain {bad}"
     return out
@@ -110,7 +132,7 @@ def main():
         with open(args.manifest, encoding="utf-8") as f:
             m = json.load(f)
         base = m.get("base", DEFAULT_BASE)
-        files = {k: v.get("url") for k, v in m.get("files", {}).items()}
+        files = {k: ("inline" if v.get("inline") else v.get("url")) for k, v in m.get("files", {}).items()}
     out = build_embed(base, files)
     os.makedirs(os.path.join(ROOT, "ghost"), exist_ok=True)
     path = os.path.join(ROOT, "ghost", "embed.html")
